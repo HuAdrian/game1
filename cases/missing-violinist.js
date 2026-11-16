@@ -1,0 +1,664 @@
+/*
+ * CASE 01 — THE MISSING VIOLINIST
+ *
+ * A case is pure data. The engine (js/engine.js + js/scenes.js) knows how to
+ * run each scene `type`; everything the player reads or hears lives here.
+ * See README.md for the full format.
+ *
+ * Dialogue lines: a plain string is spoken by Sam. "@victor Hello" is spoken
+ * by the cast member with id "victor". *stars* make emphasis.
+ */
+CaseFiles.registerCase({
+  id: 'missing-violinist',
+  code: 'MV',
+  number: '01',
+  title: 'The Missing Violinist',
+  tagline: 'A star vanishes two hours before her concert. All she leaves behind is a letter.',
+  minutes: 12,
+  skills: ['Listening', 'Reading', 'Writing'],
+
+  // The case clock shows when we expect to close the case. It only moves
+  // when the player makes a mistake or takes a hint.
+  clock: { start: '18:30', deadline: '19:30', comfortable: '19:00', deadlineName: 'curtain' },
+  hints: 3,
+  hintCost: 10,
+  mistakeCost: 5,
+
+  cast: {
+    sam:      { name: 'Sam', role: 'Detective Sergeant, Unit 9', initials: 'S', tone: 'ink' },
+    victor:   { name: 'Victor Hale', role: 'Mira’s agent', initials: 'VH', tone: 'red' },
+    whitlock: { name: 'Joanna Whitlock', role: 'Lockhart Insurance', initials: 'JW', tone: 'grey',
+                voice: { prefer: 'female', rate: 0.92, pitch: 1.0 } },
+    desk:     { name: 'Receptionist', role: 'Lockhart Insurance', initials: 'R', tone: 'grey',
+                voice: { prefer: 'female', rate: 1.08, pitch: 1.15 } },
+    nair:     { name: 'Constable Nair', role: 'On the radio', initials: 'N', tone: 'grey',
+                voice: { prefer: 'male', rate: 0.95, pitch: 0.9 } }
+  },
+
+  soundCheck: 'This is Unit Nine. If you can hear this, your equipment is working.',
+
+  scenes: [
+    /* ───────────────────────── 1 · BRIEFING ───────────────────────── */
+    {
+      id: 'briefing', type: 'story', title: 'Briefing', skill: 'Unit 9, Language Crimes',
+      blurb: 'A basement office. One desk, two chairs, one tin of biscuits.',
+      beats: [
+        'Ah. The new trainee. I’m Sam. Welcome to Unit 9.',
+        'We solve crimes where the evidence is *language*. Forged letters, lying witnesses, strange notes. Other detectives get car chases. We get commas.',
+        'Sit down, don’t touch my biscuits, and read this. It arrived ten minutes ago.',
+        { doc: {
+            kind: 'sheet', title: 'Incident Report', ref: 'Unit 9 · Case 01', stamp: 'URGENT',
+            rows: [
+              ['Missing', 'Mira Castellan, concert violinist'],
+              ['Last seen', '5:20 pm, Dressing Room 1, Aldwych Hall'],
+              ['Reported', '5:30 pm, two hours before her concert'],
+              ['Concert', 'Tonight, 7:30 pm'],
+              ['Left behind', 'Her violin, her coat, and a letter saying she is leaving music for ever'],
+              ['Agent', 'Victor Hale. Found the letter.'],
+              ['Second violin', 'Dominic Pryce. Plays the solo if she cannot.'],
+              ['Hall manager', 'Beatrice Lang. Runs the building.']
+            ]
+          }, button: 'I’ve read it' },
+        'Her agent says, “How sad. Artists are like that.” I say nobody walks away from a three-hundred-year-old violin and forgets to take it.',
+        'Now, the clock at the top of your screen. If we make no mistakes, we close this case at *6:30*. The curtain goes up at *7:30*.',
+        'Every mistake pushes that clock forward. Reading slowly costs nothing. So take your time, and be right.',
+        'If you’re stuck, tap *Ask Sam*. I’ll show you where to look, never what to think. You get three hints, and each one costs ten minutes. I’m slow.',
+        'Everything useful goes into your notebook by itself. First job: Victor Hale’s office phone has one new voicemail.'
+      ]
+    },
+
+    /* ───────────────────────── 2 · WIRETAP ───────────────────────── */
+    {
+      id: 'wiretap', type: 'wiretap', title: 'The Wiretap', skill: 'Listening · Part 1',
+      blurb: 'One voicemail. One chance to hear it.',
+      intro: [
+        'Here’s how a wiretap works in this unit. I press play. You write. The tape plays *once*, because the machine is older than I am.',
+        'Type exactly what you hear. Spelling counts: a constable is going to follow your notes, and constables do what the paper says.',
+        'You can type while it’s playing. Ready when you are.'
+      ],
+      form: {
+        title: 'Voicemail',
+        sub: 'V. Hale, office line',
+        given: [['Message left at', '4:50 pm']],
+        fields: [
+          { id: 'caller', label: 'Caller', prefix: 'Joanna', accept: ['whitlock'], strip: ['joanna ', 'ms ', 'mrs ', 'miss '],
+            answer: 'Whitlock', lines: [1, 2],
+            cold: 'He asked for “Joanna {value}”. They told him nobody of that name works there, and showed him the door.' },
+          { id: 'time', label: 'Meeting time', kind: 'time', placeholder: '',
+            accept: ['6:15', '6.15', '6 15', '615', '18:15', '18.15', '1815', 'quarter past six', 'a quarter past six', 'six fifteen', 'quarter past 6', 'a quarter past 6'],
+            answer: '6:15 pm', lines: [5, 6],
+            cold: 'You wrote “{value}” for the time, so he’ll be standing in an empty office.' },
+          { id: 'address', label: 'Address',
+            accept: ['48 mercer street', '48 mercer st', '48 mercer', 'no 48 mercer street', 'number 48 mercer street'],
+            answer: '48 Mercer Street', lines: [7, 8, 9],
+            cold: 'He went to “{value}”. It is not an insurance office. He says it smells of fish.' },
+          { id: 'askfor', label: 'Ask for', prefix: 'Mr', accept: ['okoro'], strip: ['mr. ', 'mr '],
+            answer: 'Okoro', lines: [10],
+            cold: 'He asked the front desk for “Mr {value}”. They’ve never heard of him, and now they’re suspicious.' }
+        ]
+      },
+      speaker: 'whitlock',
+      script: [
+        'Message received today, at four fifty p.m.',
+        'Good afternoon, Mr Hale. This is Joanna Whitlock, from Lockhart Insurance.',
+        'That’s Whitlock: W, H, I, T, L, O, C, K.',
+        'I’m returning your call about the cancellation policy for tonight’s concert.',
+        'The answer to your question is yes. If your soloist withdraws, for any reason, the policy pays the full ninety thousand pounds.',
+        'Now, you asked to meet today. I suggested six o’clock, but I’m with another client until six.',
+        'So let’s say a quarter past six. Please don’t be late, because we close at seven.',
+        'Remember that we have moved. Our new office is at forty-eight Mercer Street.',
+        'Mercer is spelled M, E, R, C, E, R.',
+        'And it’s number forty-eight, not fourteen. Fourteen is a fish restaurant, and they are tired of meeting our clients.',
+        'When you arrive, ask at the desk for my assistant, Mr Okoro. That’s O, K, O, R, O.',
+        'Bring the policy with you. Goodbye.'
+      ],
+      hintLine: 'I’ll wind the tape back to the part you need. Just that part.',
+      success: [
+        'Every detail right. PC Bassi is on his way to Mercer Street, and he’ll be waiting when Victor walks in.'
+      ],
+      coldIntro: 'I sent PC Bassi out with your notes. He’s just phoned.',
+      cold: [
+        'That lead’s gone cold, and it has cost us ten minutes.',
+        'We need those details again. I’ll ring Lockhart Insurance and pretend to be Victor’s assistant. You listen and fix your notes.',
+        'Warning: their receptionist talks like a horse-racing commentator, and I can only ask once.'
+      ],
+      coldCost: 10,
+      retry: {
+        speaker: 'desk',
+        script: [
+          'Lockhart Insurance, good afternoon. Mr Hale’s appointment? One moment, please.',
+          'Here it is. The file belongs to Ms Whitlock. That’s double-u, H, I, T, L, O, C, K.',
+          'But she won’t meet him herself. He needs to ask for Mr Okoro: O, K, O, R, O.',
+          'The time? It was six o’clock at first, but it has been changed to six fifteen.',
+          'And you do know we’ve moved? People keep going to our old office in Marsh Street.',
+          'We’re in Mercer Street now, M, E, R, C, E, R, at number forty-eight. Four, eight.',
+          'Is that everything? Lovely. Goodbye.'
+        ],
+        lines: { caller: [1], askfor: [2], time: [3], address: [4, 5] },
+        success: ['That’s better. Bassi is on his way to the right place this time.'],
+        fail: [
+          'Still not right. I rang back and made her repeat everything, slowly, three times. She hates me now. That’s another five minutes.',
+          'I’ve corrected your notes. Look at what you missed.'
+        ],
+        failCost: 5
+      },
+      outro: [
+        'Now look at the top of your notes. That message was left at *4:50*.',
+        'Mira was last seen at 5:20. So an insurance company was discussing a cancelled concert with Victor half an hour before there was anything to cancel.',
+        'And the policy pays ninety thousand pounds if she “withdraws”. Keep that in your head.',
+        { fact: { title: 'The voicemail', text: 'Left at 4:50 pm by Joanna Whitlock, Lockhart Insurance. Meeting at 6:15 pm, 48 Mercer Street, ask for Mr Okoro. The policy pays £90,000 if the soloist withdraws.' } },
+        { evidence: 'voicemail' },
+        'Hello. Victor has just left the hall, and his meeting isn’t for half an hour. Constable Nair is right behind him.'
+      ]
+    },
+
+    /* ───────────────────────── 3 · TAIL ───────────────────────── */
+    {
+      id: 'tail', type: 'tail', title: 'The Tail', skill: 'Listening · Part 2',
+      blurb: 'Follow the voice. Find the door.',
+      intro: [
+        'Nair is following him on foot and talking to us by radio. You’ve got the street map.',
+        'Follow the directions with your finger, then tap the building he goes into. Some buildings have names. The others only have letters.',
+        'Same rule as before: the radio plays once. Nair doesn’t like repeating things.'
+      ],
+      speaker: 'nair',
+      script: [
+        'Nair to control. The suspect has just come out of the main entrance of the hall, onto Wren Street.',
+        'He’s turning left. He’s crossing Bell Lane, and walking past the bank.',
+        'Now he’s at the next corner. He’s turning right, into King’s Lane.',
+        'He’s going straight up King’s Lane, and he’s crossing Mercer Street without stopping.',
+        'He’s passing the pharmacy on his left. Wait. He’s stopped outside the bakery.',
+        'No. He’s only tying his shoe. He’s moving again.',
+        'At the top of the lane, he’s turning right, into Canal Road.',
+        'He’s walked past the post office, and he’s gone into the building next door to it.',
+        'It’s directly opposite the bus stop. I can’t read the sign from here. Over.'
+      ],
+      hintLines: [6, 7, 8],
+      hintLine: 'I’ll play you the end of it again, from the top of King’s Lane.',
+      answer: 'B',
+      map: {
+        w: 360, h: 470,
+        roads: [
+          { x: 0, y: 66, w: 360, h: 28 }, { x: 0, y: 206, w: 360, h: 28 }, { x: 0, y: 346, w: 360, h: 28 },
+          { x: 106, y: 80, w: 28, h: 390 }, { x: 236, y: 0, w: 28, h: 470 }
+        ],
+        labels: [
+          { text: 'CANAL ROAD', x: 54, y: 84 }, { text: 'MERCER STREET', x: 300, y: 224, anchor: 'middle' }, { text: 'WREN STREET', x: 54, y: 364 },
+          { text: 'KING’S LANE', x: 120, y: 290, rot: -90, anchor: 'middle' }, { text: 'BELL LANE', x: 250, y: 150, rot: -90, anchor: 'middle' }
+        ],
+        blocks: [
+          { id: 'A', x: 6, y: 6, w: 94, h: 60, what: 'a wool shop. Lovely scarves. No suspect' },
+          { name: ['Post', 'Office'], x: 106, y: 6, w: 60, h: 60 },
+          { id: 'B', x: 172, y: 6, w: 64, h: 60 },
+          { id: 'C', x: 264, y: 6, w: 90, h: 60, what: 'a dentist’s. The only person in there was screaming, and it wasn’t Victor' },
+          { name: ['Bakery'], x: 6, y: 94, w: 100, h: 52 },
+          { name: ['Pharmacy'], x: 6, y: 152, w: 100, h: 54 },
+          { id: 'D', x: 134, y: 94, w: 102, h: 52, what: 'a launderette. That’s the building *behind* the bus stop, not opposite it' },
+          { id: 'E', x: 134, y: 152, w: 102, h: 54, what: 'a betting shop. Nobody there has seen him, and nobody there would tell us' },
+          { id: 'F', x: 264, y: 94, w: 90, h: 112, what: 'a nail salon. They offered me a discount' },
+          { id: 'G', x: 6, y: 234, w: 100, h: 112, what: 'a school for guide dogs. Forty dogs, no agent' },
+          { name: ['Park'], x: 134, y: 234, w: 102, h: 112, kind: 'park' },
+          { id: 'H', x: 264, y: 234, w: 90, h: 112, what: 'a shop that sells only umbrellas. Very London. Very wrong' },
+          { name: ['Museum'], x: 6, y: 374, w: 100, h: 90 },
+          { name: ['Bank'], x: 134, y: 374, w: 102, h: 90 },
+          { name: ['Aldwych', 'Hall'], x: 264, y: 374, w: 90, h: 90, kind: 'start' }
+        ],
+        marks: [
+          { type: 'bus', x: 204, y: 100, text: 'Bus stop' },
+          { type: 'door', x: 309, y: 374, text: 'Main entrance' }
+        ]
+      },
+      wrong: [
+        'We ran to building {id}. It’s {what}.',
+        'We’ve lost him, and ten minutes with him.'
+      ],
+      wrongCost: 10,
+      retry: {
+        intro: ['Nair’s still out there. Listen. He’s going to describe it again, from where he’s standing. He sounds thrilled.'],
+        script: [
+          'Nair to control. You went to the wrong building. I watched you do it.',
+          'Listen. I’m standing at the bus stop on Canal Road, looking across the road.',
+          'The building he went into is straight in front of me, on the other side of the road.',
+          'It’s on the corner where Canal Road meets Bell Lane, on the same side of the lane as the post office.',
+          'It is not on King’s Lane, and it is not behind me. Hurry up. Over.'
+        ],
+        hintLines: [2, 3],
+        wrong: [
+          'Wrong again. Nair has stopped using polite words, so I’ve turned the radio down. Ten more minutes gone.',
+          'It was building B. Between the post office and Bell Lane, opposite the bus stop.'
+        ],
+        wrongCost: 10
+      },
+      success: ['Building B. It turns out to be “Kestrel Car Hire”. A strange place to visit when your star has just disappeared.'],
+      outro: [
+        'Victor was in there for two minutes and came out looking pleased. The girl at the desk gave us this.',
+        { doc: {
+            kind: 'receipt', shop: 'KESTREL CAR HIRE', address: '9 Canal Road, London', ref: 'Receipt No. 20417',
+            lines: [
+              ['Vehicle', 'Black saloon'],
+              ['Registration', 'LK21 HXW'],
+              ['Hired', 'Fri 14 March, 16:30'],
+              ['Return due', '19:00'],
+              ['EXTENDED 17:55', 'now due 22:00'],
+              ['Customer name', '“John Smith”'],
+              ['Hire', '£85.00'],
+              ['Extension', '£30.00']
+            ],
+            total: ['PAID IN CASH', '£115.00'],
+            note: 'Staff note: customer wore sunglasses indoors.'
+          }, button: 'Keep the receipt' },
+        '“John Smith.” Cash. Sunglasses indoors. A master criminal.',
+        'Somebody hired a black car at half past four. And at five to six, Victor walked in and paid to keep it out until ten tonight.',
+        { fact: { title: 'Car hire receipt', text: 'Black saloon, LK21 HXW. Hired 16:30 by “John Smith”, cash. At 17:55 Victor paid to extend the hire until 22:00.' } },
+        'Why does a man with no missing violinist to look for need a car all evening? Let’s ask him. He’s back at the hall.'
+      ]
+    },
+
+    /* ───────────────────────── 4 · INTERROGATION ───────────────────────── */
+    {
+      id: 'interrogation', type: 'interrogation', title: 'The Interrogation', skill: 'Reading · True / False / Not Given',
+      blurb: 'He talks. The schedule doesn’t lie.',
+      intro: [
+        'Victor says he’s “delighted to help”. His words.',
+        'Beatrice Lang, the hall manager, has given us today’s schedule. She laminated it. I like her.',
+        'He’ll make six statements. Check each one against the schedule.',
+        'If the schedule agrees with him, it’s *True*, and you show me the line. If the schedule proves him wrong, it’s a *Lie*, and you show me the line.',
+        'If the schedule simply doesn’t say, it’s *Not Given*. We can’t use it either way. Don’t guess. Guessing is how this unit ends up in the newspapers.'
+      ],
+      suspect: 'victor',
+      need: 3,
+      doc: {
+        head: 'ALDWYCH HALL', title: 'Artists’ Day Sheet', date: 'Friday 14 March',
+        sub: 'Tonight: Mira Castellan (violin) with the Thames Chamber Orchestra',
+        sections: [
+          { id: 'times', title: 'Times', lines: [
+            { id: 't1', time: '13:00–15:30', text: 'Full rehearsal on the Main Stage (soloist and orchestra)' },
+            { id: 't2', time: '15:30–16:00', text: 'Tea break in the Green Room' },
+            { id: 't3', time: '16:00–17:00', text: 'Sound check on the Main Stage (soloist only)' },
+            { id: 't4', time: '17:00–18:00', text: 'Main Stage closed for piano tuning. Nobody may enter the hall.' },
+            { id: 't5', time: '17:15', text: 'Hot dinner for the orchestra in the Green Room' },
+            { id: 't6', time: '18:30', text: 'Doors open to the public' },
+            { id: 't7', time: '19:30', text: 'Concert begins (no interval)' }
+          ] },
+          { id: 'rooms', title: 'Rooms', lines: [
+            { id: 'r1', time: 'Ground floor', text: 'Dressing Room 1 (soloist), Agent’s Office, Green Room' },
+            { id: 'r2', time: 'First floor', text: 'Dressing Rooms 2–6 (orchestra)' },
+            { id: 'r3', time: 'Basement', text: 'Instrument Store' }
+          ] },
+          { id: 'notices', title: 'Notices', lines: [
+            { id: 'n1', text: 'The Hall Café is closed all day today while the new kitchen is fitted.' },
+            { id: 'n2', text: 'Stage door: please keep it closed. All deliveries to the front desk.' },
+            { id: 'n3', text: 'Mobile phones must be switched off on stage.' }
+          ] }
+        ]
+      },
+      statements: [
+        { id: 's1', verdict: 'T', proof: ['t1'],
+          text: 'The rehearsal with the full orchestra ended at half past three.',
+          harder: 'Mira and the orchestra had finished rehearsing together before the tea break began.', harderProof: ['t1', 't2'],
+          right: ['It matches. Even Victor tells the truth when it doesn’t matter.'],
+          explain: 'First line: full rehearsal, 13:00 to 15:30. That’s half past three. He’s telling the truth.',
+          hint: { section: 'times', text: 'He’s talking about the afternoon timetable. Look in *Times*, near the top.' },
+          word: { t: 'paraphrase', a: 'ended at half past three', b: '13:00–15:30' } },
+        { id: 's2', verdict: 'F', proof: ['t4'],
+          text: 'At a quarter past five, I was sitting in the hall, watching Mira practise on the main stage.',
+          harder: 'Around five fifteen I was in row F, listening while she played through the difficult parts up on the platform.',
+          right: ['@victor Closed? Well. I may have been thinking of a different day.', 'A different day. Of course.'],
+          explain: 'The Main Stage was closed from five to six for piano tuning, and nobody could enter the hall. He wasn’t watching anything.',
+          hint: { section: 'times', text: 'Find out what was happening on the Main Stage at 5:15. It’s in *Times*.' },
+          word: { t: 'paraphrase', a: 'watching Mira practise on the main stage', b: 'Main Stage closed… Nobody may enter the hall' } },
+        { id: 's3', verdict: 'NG', proof: [],
+          text: 'Mira always eats alone before a concert. She never has dinner with the orchestra.',
+          harder: 'On concert days Mira has her evening meal by herself. Ask anyone.',
+          right: ['Exactly. The schedule says the orchestra gets dinner. It says nothing about Mira’s habits. We can’t call it true, and we can’t call it a lie.'],
+          explain: 'The schedule mentions dinner for the orchestra, and nothing about where or how Mira eats. That’s Not Given.',
+          hint: { section: 'times', text: 'There is only one line about food, and it’s in *Times*. Read exactly who that line is about.' },
+          word: { t: 'trap', a: '“Mira always eats alone”', b: 'The schedule mentions dinner, but not Mira’s habits → Not Given' } },
+        { id: 's4', verdict: 'F', proof: ['n1'],
+          text: 'After that, I went for a coffee in the hall café. I stayed there until half past five.',
+          harder: 'I bought a cappuccino from the café here in the building at about twenty past five.',
+          right: ['@victor A different café, then! London is full of cafés.', 'You said the hall café. I wrote it down. I write everything down.'],
+          explain: 'Look at the notices. The Hall Café is closed all day. No coffee, no alibi.',
+          hint: { section: 'notices', text: 'This isn’t about a time. Try the *Notices* at the bottom.' },
+          word: { t: 'paraphrase', a: 'went for a coffee in the hall café', b: 'The Hall Café is closed all day today' } },
+        { id: 's5', verdict: 'T', proof: ['t6', 't7'],
+          text: 'The audience aren’t allowed in until an hour before the music starts.',
+          harder: 'There is a full hour between the public coming in and the first note.',
+          right: ['Doors at 6:30, music at 7:30. One hour. True, sadly.'],
+          explain: 'Doors open to the public at 18:30 and the concert begins at 19:30. One hour. It’s true.',
+          hint: { section: 'times', text: 'You need two times for this one, and both are at the end of *Times*.' },
+          word: { t: 'paraphrase', a: 'the audience aren’t allowed in until…', b: 'Doors open to the public' } },
+        { id: 's6', verdict: 'F', proof: ['r1'],
+          text: 'My office is on the top floor. It’s nowhere near Mira’s dressing room.',
+          harder: 'There are stairs between my desk and the soloist’s dressing room. A lot of stairs.',
+          right: ['@victor …Ground floor. Yes. I get confused by stairs.', 'You’re her next-door neighbour, Victor.'],
+          explain: 'Ground floor: Dressing Room 1 and the Agent’s Office, side by side. He works next door to her.',
+          hint: { section: 'rooms', text: 'He’s talking about where things are, not when. Look in *Rooms*.' },
+          word: { t: 'paraphrase', a: 'nowhere near Mira’s dressing room', b: 'Ground floor: Dressing Room 1 (soloist), Agent’s Office' } }
+      ],
+      reactions: {
+        'T>F': ['@victor Thank you! At last, somebody who listens.', 'He’s smiling. I hate it when he smiles. That wasn’t true, Trainee.'],
+        'T>NG': ['That line doesn’t say what he said. Read who it’s about. You can’t mark it True without proof.'],
+        'F>T': ['@victor Are you calling me a liar? Read your own schedule!', 'He’s right, which is annoying.'],
+        'F>NG': ['@victor And where does it say that? Go on. Show me.', 'He’s got us. We can’t prove something the schedule never mentions.'],
+        'NG>T': ['It *is* in the schedule. You gave up too early.'],
+        'NG>F': ['It *is* in the schedule, and it doesn’t agree with him. You let him off.'],
+        'line': ['Right idea, wrong line. That line doesn’t prove it, and his lawyer would notice.'],
+        again: ['@victor Perhaps I wasn’t clear. Let me say it again.'],
+        resolvedLie: ['I’ll note that one myself, but it doesn’t count the same. He’s seen that we can be fooled.']
+      },
+      crack: [
+        '@victor All right! ALL RIGHT! I wasn’t in the hall, and I wasn’t in the café.',
+        '@victor I was in my office, alone, writing a sales report for Beatrice. Is writing a crime now?',
+        'In this unit? Quite often.',
+        '@victor You should be talking to Dominic Pryce! He has practised Mira’s solo all week. And Beatrice Lang has a key to every door in this building!',
+        'Noted. Both of them. Now, let’s have a look at this report of yours.'
+      ],
+      noCrack: [
+        '@victor I’ve been very patient. I would like my lawyer now. And a sandwich.',
+        'He’s stopped talking, because we let him think he was winning. Now we need a warrant to search his office, and that’s ten minutes.',
+        { lose: 10 },
+        'While we waited, he had plenty to say about other people. Dominic Pryce has practised Mira’s solo all week, he says. And Beatrice Lang has a key to every door.',
+        'The warrant’s here. And on his desk: a sales report he wrote this afternoon.'
+      ],
+      outro: [
+        { fact: { title: 'Victor’s alibi', text: 'He said he was watching Mira on the Main Stage at 5:15, then in the hall café. The stage was closed for piano tuning and the café was closed all day. His office is next door to her dressing room.' } },
+        { evidence: 'alibi' }, { evidence: 'dominic' }, { evidence: 'beatrice' }
+      ]
+    },
+
+    /* ───────────────────────── 5 · EVIDENCE BOARD ───────────────────────── */
+    {
+      id: 'board', type: 'chart', title: 'The Evidence Board', skill: 'Writing · Task 1 skills',
+      blurb: 'A chart, a report, and one sentence that doesn’t fit.',
+      intro: [
+        'Two things for the board. The box office’s own chart of ticket sales, and the report Victor wrote about it for Beatrice.',
+        'Most of his report is accurate. That’s how good liars work: five true sentences, and one that isn’t.',
+        'Check every sentence against the chart, and tap the one that gets the numbers wrong.'
+      ],
+      chart: {
+        title: 'Tickets sold: Castellan concert series',
+        note: 'Aldwych Hall box office · hall capacity 1,200 seats',
+        max: 1200, capacity: 1200, ticks: [0, 300, 600, 900, 1200],
+        bars: [
+          { label: 'Nov', value: 1150 }, { label: 'Dec', value: 1200 }, { label: 'Jan', value: 900 },
+          { label: 'Feb', value: 600 }, { label: 'Mar', value: 350, tag: 'tonight' }
+        ],
+        hintBars: [2, 3, 4]
+      },
+      memo: { to: 'Beatrice Lang, Hall Manager', from: 'Victor Hale', subject: 'Ticket sales this season' },
+      sentences: [
+        { id: 'c1', text: 'The bar chart shows the number of tickets sold for each of Mira Castellan’s five concerts at Aldwych Hall this season.',
+          wrong: 'Five bars, five concerts, tickets sold. That sentence is fine.' },
+        { id: 'c2', text: 'In November, 1,150 tickets were sold, which was close to the hall’s limit of 1,200 seats.',
+          wrong: 'November: 1,150. Capacity: 1,200. “Close to the limit” is fair. Keep looking.' },
+        { id: 'c3', text: 'Sales reached a peak in December, when every seat in the hall was taken.',
+          wrong: 'December is the tallest bar, and 1,200 is a full hall. That one’s true.' },
+        { id: 'c4', text: 'Despite of the cold weather, 900 people still bought tickets in January.',
+          wrong: 'Terrible grammar, correct number. January is 900. But remember that “Despite of”. I’ve got a feeling about it.' },
+        { id: 'c5', text: 'Since then, ticket sales have risen steadily from month to month.', false: true },
+        { id: 'c6', text: 'The lowest figure in the chart is still above 300 tickets.',
+          wrong: 'True. 350 is above 300. It’s also 850 empty seats, but he isn’t lying.' }
+      ],
+      hint: 'Look at the right-hand side of the chart, January to March. Then read the second half of his report again.',
+      found: ['“Risen steadily.” Look at those last three bars. Does that look like rising to you?', 'Before this goes on the board, fix it. How should that sentence read, if it told the truth?'],
+      rewrite: {
+        prompt: 'Choose the sentence that matches the chart',
+        options: [
+          { text: 'Since then, ticket sales have remained stable at around 900.',
+            wrong: '“Stable” means flat. Those three bars aren’t flat. They’re a staircase going down.' },
+          { text: 'Since then, ticket sales have fallen steadily, reaching a low of 350 in March.', correct: true },
+          { text: 'Since then, ticket sales have fluctuated, with a second peak in March.',
+            wrong: '“Fluctuated” means up and down. This only goes one way. And March is the lowest bar, not a peak.' }
+        ],
+        hint: 'Compare the three bars after December with each other. Up, down, or the same? Then look for the option with that verb.'
+      },
+      words: [
+        { t: 'chart', a: 'reached a peak', b: 'the highest point: Sales reached a peak in December.' },
+        { t: 'chart', a: 'fell steadily', b: 'went down at an even speed: 900 → 600 → 350' },
+        { t: 'chart', a: 'reaching a low of…', b: 'the lowest point: …a low of 350 in March' },
+        { t: 'chart', a: 'remained stable / fluctuated', b: 'stayed flat / went up and down' }
+      ],
+      outro: [
+        'So. Sales didn’t rise. They fell off a cliff: 350 tickets for a hall with 1,200 seats.',
+        'A concert with 350 people in it earns almost nothing. A *cancelled* concert, with that insurance policy, earns ninety thousand pounds.',
+        'And he hid it from the hall, in writing. That goes on the board.',
+        { fact: { title: 'The sales report', text: 'Victor told the hall that sales had “risen steadily”. The chart shows they fell steadily: 900, 600, then 350 for tonight.' } },
+        { evidence: 'sales' }
+      ]
+    },
+
+    /* ───────────────────────── 6 · FORGERY LAB ───────────────────────── */
+    {
+      id: 'forgery', type: 'forgery', title: 'The Forgery Lab', skill: 'Writing · Grammar',
+      blurb: 'She never makes mistakes. So who made these?',
+      intro: [
+        'The lab has finished with the letter from her dressing table. No fingerprints. So we read it instead.',
+        'One thing you should know. Mira Castellan writes a grammar column for a Sunday newspaper. She once sent a birthday card back to her own mother, with corrections.',
+        'If she wrote this letter, it’s perfect. If you can find *three* mistakes, we can prove she didn’t.',
+        'Tap any sentence she would never have written. Then show me what she’d have written instead.'
+      ],
+      letter: {
+        from: ['Dressing Room 1', 'Aldwych Hall', 'Friday 14 March'],
+        greeting: 'Dear Mr Hale,',
+        paragraphs: [
+          [
+            { id: 'f1', text: 'I am writing to inform you that I have decided to withdraw from tonight’s concert.',
+              fine: '“Withdraw from” is exactly right. Keep looking.' },
+            { id: 'f2', text: 'Despite of my love for the London public, I cannot continue.',
+              error: { bad: 'Despite of', good: 'Despite',
+                options: [
+                  { text: 'Although my love for the London public, I cannot continue.', wrong: '“Although” needs a verb after it: “although I love”. That’s a new mistake, not a correction.' },
+                  { text: 'Despite my love for the London public, I cannot continue.', correct: true },
+                  { text: 'Despite of my love to the London public, I cannot continue.', wrong: 'You’ve changed a word that was fine and kept the one that’s wrong.' }
+                ],
+                word: { t: 'grammar', a: 'despite of my love', b: 'despite my love', n: 'despite + noun (no “of”). Or: in spite of + noun.' } } }
+          ],
+          [
+            { id: 'f3', text: 'I have been playing the violin since thirty years, and I am very tired.',
+              error: { bad: 'since thirty years', good: 'for thirty years',
+                options: [
+                  { text: 'I have been playing the violin since thirty years ago, and I am very tired.', wrong: 'Still wrong. Thirty years is a length of time, not a starting point.' },
+                  { text: 'I have been playing the violin during thirty years, and I am very tired.', wrong: '“During” goes with a named period, like “during the war”. Not with a number of years.' },
+                  { text: 'I have been playing the violin for thirty years, and I am very tired.', correct: true }
+                ],
+                word: { t: 'grammar', a: 'since thirty years', b: 'for thirty years', n: 'for + a length of time. since + a starting point (since 1995).' } } },
+            { id: 'f4', text: 'Please give my apologies to the orchestra, who have always been kind to me.',
+              fine: '“The orchestra, who have always been kind.” Correct. An orchestra is a group of people.' }
+          ],
+          [
+            { id: 'f5', text: 'I need a long rest, and I look forward to hear from you in the spring.',
+              error: { bad: 'to hear', good: 'to hearing',
+                options: [
+                  { text: 'I need a long rest, and I look forward to hearing from you in the spring.', correct: true },
+                  { text: 'I need a long rest, and I am looking forward to hear from you in the spring.', wrong: 'You changed the tense, but the real mistake is still sitting there.' },
+                  { text: 'I need a long rest, and I look forward hear from you in the spring.', wrong: 'Now it’s lost a word and it’s worse. Mira would faint.' }
+                ],
+                word: { t: 'grammar', a: 'look forward to hear', b: 'look forward to hearing', n: 'look forward to + -ing. Here “to” is a preposition.' } } },
+            { id: 'f6', text: 'Please do not try to contact me before then.',
+              fine: 'Correct. A little rude, but correct.' }
+          ]
+        ],
+        close: 'Yours sincerely,', signature: 'Mira Castellan'
+      },
+      fineGeneric: ['Nothing wrong with that one. Mira would approve.'],
+      fixPrompt: 'What would Mira have written?',
+      fixHint: 'Put the options next to the original. Each one changes something different. Only one of them changes the part that’s actually wrong.',
+      hint: 'There’s one in this paragraph. Read it slowly, the way she would.',
+      stamp: 'FORGERY',
+      outro: [
+        'Three mistakes in six sentences. The woman who corrects restaurant menus did not write this letter.',
+        'Hold on. “Despite of.” I’ve seen that today. Where have I seen that?',
+        'Victor’s sales report. “Despite of the cold weather.” The same mistake.',
+        'People remember to change their handwriting. Nobody remembers to change their grammar.',
+        { fact: { title: 'The forged letter', text: 'Three grammar mistakes Mira would never make. One of them, “Despite of”, also appears in Victor’s sales report.' } },
+        { evidence: 'forgery' }
+      ]
+    },
+
+    /* ───────────────────────── 7 · TORN NOTE ───────────────────────── */
+    {
+      id: 'note', type: 'torn', title: 'The Torn Note', skill: 'Writing · Linking words',
+      blurb: 'Six pieces. Six small words missing.',
+      intro: [
+        'A cleaner found this in the bin by the stage door, under a banana skin. Somebody tore it up in a hurry.',
+        'It tore along the folds, and the small words went with them. The linking words: *so*, *because*, *although*.',
+        'Those words carry the logic. Put the right one in each gap, and the note will tell us the plan.'
+      ],
+      opening: 'G. Collect her from the stage door at 5.20.',
+      pieces: [
+        { id: 'g1', before: 'Tell her the TV interview has moved to a studio in Greenwich,', after: 'she must leave at once.',
+          options: ['but', 'so', 'because'], answer: 'so',
+          why: { but: '“But” would make leaving a surprise. It isn’t. The interview has moved, and that’s the reason she has to go.',
+                 because: 'That turns it round. The interview didn’t move because she’s leaving.' },
+          hint: 'Read both halves of this piece. Is the second half the reason for the first, or the result of it?',
+          word: { t: 'linker', a: 'so', b: 'result', n: 'The interview has moved, so she must leave at once.' } },
+        { id: 'g2', before: 'Take the longest road you can find,', after: 'she must not be back before nine.',
+          options: ['so', 'although', 'because'], answer: 'because',
+          why: { so: 'The long road isn’t why she must stay away. It’s the other way round.',
+                 although: 'There’s no contrast here. The second half explains the first.' },
+          hint: 'Ask yourself *why* the driver should take the longest road. Which half gives the reason?',
+          word: { t: 'linker', a: 'because', b: 'reason', n: 'Take the longest road, because she must not be back before nine.' } },
+        { id: 'g3', before: '', after: 'she will be furious, she will be completely safe.', capital: true,
+          options: ['because', 'unless', 'although'], answer: 'although',
+          why: { because: 'She isn’t safe *because* she’s angry. Those two ideas pull in opposite directions.',
+                 unless: '“Unless she will be furious” isn’t English, and Mira would be the first to tell you.' },
+          hint: 'Furious, and safe. Do those two ideas go together, or against each other?',
+          word: { t: 'linker', a: 'although', b: 'contrast', n: 'Although she will be furious, she will be completely safe.' } },
+        { id: 'g4', before: '', after: 'she asks for her phone, tell her it is in the boot of the car.', capital: true,
+          options: ['unless', 'if', 'although'], answer: 'if',
+          why: { unless: '“Unless” means “if she doesn’t”. Why would he answer a question nobody has asked?',
+                 although: 'There’s no contrast. One thing happens, then the other.' },
+          hint: 'She might ask, or she might not. What kind of word do we need when something only *might* happen?',
+          word: { t: 'linker', a: 'if', b: 'condition', n: 'If she asks for her phone, tell her it is in the boot.' } },
+        { id: 'g5', before: 'We both get paid', after: 'the concert is cancelled.',
+          options: ['unless', 'as soon as', 'even though'], answer: 'as soon as',
+          why: { unless: 'Paid *unless* it’s cancelled? Then they’d want her on stage, not in a car.',
+                 'even though': '“Even though” would make the cancellation a problem for them. It’s the whole point.' },
+          hint: 'Think about what the writer wants to happen to the concert, and when the money arrives.',
+          word: { t: 'linker', a: 'as soon as', b: 'time', n: 'We both get paid as soon as the concert is cancelled.' } },
+        { id: 'g6', before: '', after: 'if she plays tonight, we get nothing.', capital: true, comma: true,
+          options: ['therefore', 'however', 'in addition'], answer: 'however',
+          why: { therefore: '“Therefore” gives a result. But this sentence is the opposite of the one before it.',
+                 'in addition': '“In addition” adds a similar idea. This is the other side of the coin.' },
+          hint: 'Compare this piece with the one above it. Paid, then not paid. Same direction, or opposite?',
+          word: { t: 'linker', a: 'however', b: 'contrast (new sentence)', n: 'We get paid… However, if she plays tonight, we get nothing.' } }
+      ],
+      closing: 'Burn this note.',
+      outro: [
+        'There it is. No kidnapping. Just a fake TV interview, and the slowest drive in London.',
+        'A car for the whole evening. Remember the receipt? Black saloon, LK21 HXW. I’m calling Traffic.',
+        'Got her. Traffic stopped a black saloon on Tower Bridge doing eleven miles an hour. In the back seat: one violinist, extremely angry.',
+        'The driver is called Gus. He says a man in sunglasses paid him in cash, and that he “never looks at faces”. Very useful.',
+        { fact: { title: 'The torn note', text: 'The plan: send Mira to a fake TV interview in Greenwich, by the longest road, so the concert is cancelled. “We both get paid as soon as the concert is cancelled. However, if she plays tonight, we get nothing.”' } },
+        'So the note isn’t signed, and Gus is no help. But read the last two lines again. The writer didn’t just need Mira missing. The writer needed the concert *cancelled*.',
+        'Ask yourself who gets paid when there is no concert at all. Then tell me who we arrest.'
+      ]
+    },
+
+    /* ───────────────────────── 8 · ACCUSATION ───────────────────────── */
+    {
+      id: 'accusation', type: 'accusation', title: 'The Accusation', skill: 'One name. Three proofs.',
+      blurb: 'Mira is on her way back. Somebody is going to a cell.',
+      intro: [
+        'Three names. Pick one.',
+        'Then give me three pieces of evidence. A court doesn’t care what somebody *wanted*, or what somebody *could* have done. It wants to know what they *did*.',
+        'Choose the three cards that show that. Choose badly and the right person walks out of the door.'
+      ],
+      hint: 'I won’t give you a name. But open your notebook and read the torn note again: the last two lines. Then ask which cards show an action, and which only show a wish.',
+      suspects: [
+        { id: 'victor', name: 'Victor Hale', role: 'Agent', initials: 'VH', line: 'Takes 15% of everything Mira earns. Lied to us before tea.' },
+        { id: 'dominic', name: 'Dominic Pryce', role: 'Second violin', initials: 'DP', line: 'Knows Mira’s solo by heart. Plays it tonight if she can’t.' },
+        { id: 'beatrice', name: 'Beatrice Lang', role: 'Hall manager', initials: 'BL', line: 'Has a key to every door. Laminates things.' }
+      ],
+      culprit: 'victor',
+      confirm: 'Arrest {name}?',
+      verdictStamps: { C: 'CASE CLOSED', W: 'NOT PROVEN', R: 'CASE REOPENED' },
+      paper: 'The London Evening Post',
+      timeLines: {
+        early: 'Miss Castellan walked on stage at 7:30 exactly and played for ninety minutes. All 350 people in the hall stood up to cheer.',
+        close: 'Miss Castellan ran on stage at 7:30 still wearing her coat, with seconds to spare. She did not take it off until the interval. There was no interval.',
+        late: 'The concert began {late} minutes late. Those who waited called it the angriest, and the best, performance of her life.'
+      },
+      endings: {
+        C: {
+          headline: 'AGENT ARRESTED IN VIOLIN PLOT',
+          sub: '“His grammar gave him away,” say police',
+          body: [
+            'Concert agent Victor Hale was arrested last night after his star violinist, Mira Castellan, was found in a hire car on Tower Bridge.',
+            'Police say Hale planned to cancel her concert and collect £90,000 from an insurance company. A voicemail, a false alibi and a forged letter were enough for the court.'
+          ],
+          sam: [
+            'Guilty. He asked the judge for a shorter sentence, “despite of” his crimes. I’m not joking.',
+            'Mira has read our case report. She found two commas she didn’t like. Apart from that: well done, Trainee.'
+          ]
+        },
+        W: {
+          headline: 'AGENT WALKS FREE',
+          sub: '“Not enough evidence,” says judge',
+          body: [
+            'Victor Hale left court a free man yesterday. Police had accused him of sending violinist Mira Castellan on a false journey across London in order to cancel her concert.',
+            'The judge agreed that somebody had a reason to do it, but said the police had not shown that Mr Hale was the one who did.'
+          ],
+          sam: [
+            'Right man, wrong cards. He waved at me on his way out.',
+            '{weak}',
+            'The three that mattered: the insurance call *before* she vanished, the alibi that fell apart, and his grammar in that letter. Next time.'
+          ]
+        },
+        R: {
+          dominic: {
+            headline: 'POLICE ARREST WRONG MAN',
+            sub: 'Second violinist released after four hours',
+            body: [
+              'Police have apologised to violinist Dominic Pryce, who was arrested last night and released four hours later.',
+              'Mr Pryce pointed out that he wanted the concert to go ahead, with himself as soloist, and so had no reason to cancel it. He described his cell as “having wonderful acoustics”. The case has been reopened.'
+            ],
+            sam: [
+              'Wrong one. The note said they get paid when the concert is *cancelled*. Dominic wanted to play it, not stop it.',
+              'Meanwhile, somebody is on his way to collect ninety thousand pounds.',
+              'The Inspector wants to see us. Bring the biscuits. We’re going to need them.'
+            ]
+          },
+          beatrice: {
+            headline: 'HALL MANAGER CLEARED',
+            sub: '“I had 350 tickets to refund,” says Lang',
+            body: [
+              'Police have apologised to Beatrice Lang, manager of Aldwych Hall, who was arrested last night.',
+              'Ms Lang explained that a cancelled concert costs the hall thousands of pounds, and showed officers a laminated copy of her diary for the whole day. The case has been reopened.'
+            ],
+            sam: [
+              'Wrong one. The note said they get paid when the concert is *cancelled*. A cancelled concert costs Beatrice money.',
+              'Meanwhile, somebody is on his way to collect ninety thousand pounds.',
+              'The Inspector wants to see us. Bring the biscuits. We’re going to need them.'
+            ]
+          }
+        }
+      }
+    },
+
+    /* ───────────────────────── 9 · CASE REPORT ───────────────────────── */
+    {
+      id: 'report', type: 'report', title: 'Case Report', skill: 'Your results',
+      endingNames: { C: 'Conviction', W: 'Walked free', R: 'Case reopened' },
+      skills: [
+        { key: 'L', name: 'Listening', from: 'the wiretap and the tail' },
+        { key: 'R', name: 'Reading', from: 'the interrogation' },
+        { key: 'W', name: 'Writing', from: 'the chart report, the forged letter and the torn note' }
+      ]
+    }
+  ],
+
+  /* Evidence cards. `proves` marks the three that convict the culprit. */
+  evidence: [
+    { id: 'voicemail', title: 'The voicemail', text: 'The insurer returned Victor’s call about a cancelled concert at 4:50, half an hour before Mira disappeared.', proves: true },
+    { id: 'alibi', title: 'The broken alibi', text: 'Victor said he was watching Mira on stage, then in the café. The stage was closed. So was the café.', proves: true },
+    { id: 'sales', title: 'The sales report', text: 'Victor told the hall that ticket sales were rising. They were falling fast.',
+      weak: 'The sales report shows he needed money. So does half of London. It’s a reason, not an action.' },
+    { id: 'forgery', title: 'The forger’s grammar', text: 'The fake letter says “Despite of”. So does Victor’s own sales report.', proves: true },
+    { id: 'dominic', title: 'Dominic’s practice', text: 'Dominic Pryce has practised Mira’s solo all week.',
+      weak: 'Dominic practising a solo proves that Dominic practises. The judge laughed.' },
+    { id: 'beatrice', title: 'Beatrice’s keys', text: 'Beatrice Lang can open every door in the hall.',
+      weak: 'Beatrice’s keys prove that she’s a hall manager. That isn’t a crime yet.' }
+  ]
+});

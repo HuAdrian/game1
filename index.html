@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#d8c39a">
+  <title>Case Files</title>
+  <meta name="description" content="An IELTS practice game disguised as detective work.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="bar" hidden>
+      <div class="bar-title">
+        <span id="bar-case"></span>
+        <b id="bar-scene"></b>
+      </div>
+      <button id="clock" type="button" aria-label="Case clock">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        <span><b id="clock-time"></b><small id="clock-sub"></small></span>
+      </button>
+      <button id="btn-hint" type="button"><span>Ask Sam</span><span id="hint-pips"></span></button>
+      <button id="btn-notebook" type="button" aria-label="Notebook">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z"/><path d="M6 3v18M3 7h3M3 12h3M3 17h3M10 8h5M10 12h5"/></svg>
+      </button>
+      <div id="progress" aria-hidden="true"></div>
+    </header>
+    <main id="stage"></main>
+    <footer id="tray" hidden></footer>
+    <div id="dialogue" hidden></div>
+    <div id="sheet" hidden></div>
+    <div id="stamp-layer" aria-live="polite"></div>
+    <div id="toasts" aria-live="polite"></div>
+  </div>
+  <noscript>Case Files needs JavaScript to run.</noscript>
+
+  <script src="js/engine.js"></script>
+  <script src="js/scenes.js"></script>
+  <!-- Each case is one data file. Add new cases here. -->
+  <script src="cases/missing-violinist.js"></script>
+  <script>CaseFiles.boot();</script>
+</body>
+</html>
