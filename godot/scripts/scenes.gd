@@ -48,7 +48,7 @@ func render_doc(d: Dictionary) -> Control:
 				UI.label(str(d.headline), 38, UI.serif_b), UI.label(d.sub, 22, UI.serif_i), UI.rule(UI.INK)]
 			for para in d.body:
 				kids.append(UI.label(para, 19))
-			return UI.paper(kids, 18, Color("f4efe1"))
+			return UI.paper(kids, 18, Color("f3e8cc"))
 		_:
 			var grid := GridContainer.new()
 			grid.columns = 2
@@ -104,9 +104,12 @@ func _select(p: PanelContainer, on: bool, color := UI.RED) -> void:
 	if p.has_meta("pin"):
 		p.get_meta("pin").modulate.a = 1.0 if on else 0.35
 	p.pivot_offset = p.size * 0.5
-	var tw := p.create_tween()
-	tw.tween_property(p, "scale", Vector2(1.05, 1.05), 0.07)
-	tw.tween_property(p, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	s.shadow_size = 14 if on else 6
+	s.shadow_offset = Vector2(0, 9) if on else Vector2(0, 3)
+	g.sfx("card")
+	var tw := p.create_tween().set_parallel(true)
+	tw.tween_property(p, "scale", Vector2(1.06, 1.06) if on else Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(p, "rotation", (0.03 if randf() < 0.5 else -0.03) if on else 0.0, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## A document made of tappable lines (the schedule, the logs). Returns {paper, lines, sections}.
@@ -214,7 +217,7 @@ func _make_tape(label: String, who: String) -> Dictionary:
 	var play := UI.button("Play", "danger", "tape-play")
 	play.custom_minimum_size = Vector2(104, 56)
 	play.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var panel := UI.panel(UI.box(Color("2b3440"), 12, 10, 2, Color("11171e"), 8), [UI.hbox([reels[0], reels[1], UI.vbox([name, sub, bar, status], 2), play], 8)])
+	var panel := UI.panel(UI.box(Color("22345a"), 12, 10, 2, Color("16213a"), 8), [UI.hbox([reels[0], reels[1], UI.vbox([name, sub, bar, status], 2), play], 8)])
 	return {"panel": panel, "reels": reels, "status": status, "bar": bar, "play": play}
 
 
@@ -468,7 +471,7 @@ func _wiretap_round(sc: Dictionary, round_id: String, speaker: String, script: A
 		var lab := UI.tag(gv[0], UI.SOFT, 13)
 		lab.size_flags_horizontal = Control.SIZE_FILL
 		rows.append(UI.hbox([lab, UI.label(gv[1], 24, UI.hand, UI.BLUE)], 8))
-		rows.append(UI.rule(Color("cfd9e6")))
+		rows.append(UI.rule(Color("c9d1de")))
 	var marks := {}
 	for f in sc.form.fields:
 		var lab2 := UI.tag(f.label, UI.SOFT, 13)
@@ -713,10 +716,12 @@ func interrogation(sc: Dictionary) -> void:
 		face.call()
 		g.react(who, "flinch")
 		g.sfx("gasp")
+		g.set_tension(float(st.hits) / float(total_comp), who)
 	var lose_cred := func() -> void:
 		st.cred -= 1
 		draw_meters.call()
 		g.feedback("wrong")
+		g.sfx("snap")
 		g.set_mood(who, "smug")
 		g.react(who, "hop")
 		g.toast("Credibility lost", "bad")
@@ -827,8 +832,10 @@ func interrogation(sc: Dictionary) -> void:
 					_tint(doc.lines[ans.line], UI.BLUE_SOFT)
 					PenMark.draw_on(doc.lines[ans.line], "tick", UI.BLUE)
 					g.sfx("pen")
+					g.sfx("good")
 					await g.stamp("CONFIRMED", "ink")
 				else:
+					g.sfx("good")
 					await g.stamp("NOT GIVEN", "grey")
 				await g.say(s.right)
 			else:
@@ -891,15 +898,20 @@ func interrogation(sc: Dictionary) -> void:
 	g.set_prop(null)
 	g.set_scene_full(true)
 	g.flag("interview_hits", st.hits)
+	g.set_tension(0.0)
 	if st.ended:
 		g.flag("interview_lost", true)
 		g.set_mood(who, "smug")
 		await g.play(sc.cardLines.noCred)
 	else:
 		if st.hits >= int(sc.need):
+			g.set_tension(1.0, who)
 			g.set_mood(who, "cracked")
+			g.sfx("crack")
+			g.feedback("large")
 			g.react(who, "slump")
 			await g.play(sc.crack)
+			g.set_tension(0.0)
 		else:
 			g.set_mood(who, "smug")
 			await g.play(sc.noCrack)
@@ -1110,14 +1122,14 @@ func torn(sc: Dictionary) -> void:
 	var text_of := func(p: Dictionary, word: String) -> String:
 		var mid := "[color=#c2271c][b]%s[/b][/color]" % word
 		return "%s%s%s%s" % [p.before + " " if p.before != "" else "", mid, ", " if p.get("comma", false) else " ", p.after]
-	var strip_style := func() -> StyleBoxFlat: return UI.box(Color("f8f1dc"), 14, 2, 3, Color("f8f1dc"), 6)
+	var strip_style := func() -> StyleBoxFlat: return UI.box(Color("f5ead0"), 14, 2, 3, Color("f5ead0"), 6)
 	var kids: Array = [UI.panel(strip_style.call(), [UI.label(sc.opening, 21, UI.hand)])]
 	var fn := {}   # filled in below; lambdas capture locals by value, so late-bound calls go through this
 	var fill := func(p: Dictionary, o: String) -> void:
 		st.solved[p.id] = true
 		labels[p.id].text = text_of.call(p, cap.call(o) if p.get("capital", false) else o)
 		var strip: PanelContainer = strips[p.id]
-		strip.get_theme_stylebox("panel").border_color = Color("f8f1dc")
+		strip.get_theme_stylebox("panel").border_color = Color("f5ead0")
 		PenMark.draw_on(strip, "tape")
 		var tw := strip.create_tween().set_parallel(true)
 		tw.tween_property(strip, "rotation", 0.0, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -1138,7 +1150,7 @@ func torn(sc: Dictionary) -> void:
 			return
 		for q in sc.pieces:
 			if not st.solved.has(q.id):
-				strips[q.id].get_theme_stylebox("panel").border_color = UI.RED if q.id == p.id else Color("f8f1dc")
+				strips[q.id].get_theme_stylebox("panel").border_color = UI.RED if q.id == p.id else Color("f5ead0")
 		var row := UI.hbox([], 8)
 		for i in p.options.size():
 			var o: String = p.options[i]
@@ -1151,6 +1163,7 @@ func torn(sc: Dictionary) -> void:
 				if st.busy:
 					return
 				if o == p.answer:
+					g.feedback("right")
 					fill.call(p, o)
 					return
 				st.busy = true
@@ -1238,6 +1251,7 @@ func scan(sc: Dictionary) -> void:
 				_tint(doc.lines[id], UI.BLUE_SOFT)
 				PenMark.draw_on(doc.lines[id], "underline", UI.BLUE)
 				g.sfx("pen")
+				g.feedback("right")
 				await g.stamp("FOUND", "ink")
 				if who != "":
 					g.react(who, "nod")
@@ -1328,6 +1342,13 @@ func board() -> void:
 		await tw.finished
 		if found.is_empty():
 			st.wrongs += 1
+			g.sfx("snap")
+			for id in [a, b]:
+				var c: Control = cards[id]
+				var sh := c.create_tween()
+				for k in 4:
+					sh.tween_property(c, "position:x", c.position.x + (6.0 if k % 2 == 0 else -6.0), 0.04)
+				sh.tween_property(c, "position:x", c.position.x, 0.04)
 			g.lose(int(g.data.mistakeCost))
 			var snap := g.create_tween()
 			snap.tween_property(line, "modulate:a", 0.0, 0.25)
@@ -1339,10 +1360,27 @@ func board() -> void:
 		else:
 			g.state.deductions.append(found.get("same", found.id))
 			g.save()
+			# the pair is drawn together along the string, then the conclusion lands
+			g.sfx("deduce")
+			line.width = 7.0
+			for id in [a, b]:
+				var c: Control = cards[id]
+				var toward: Vector2 = ((pa + pb) * 0.5 - (c.get_global_rect().get_center() - g.overlay.global_position)) * 0.18
+				var pull := c.create_tween()
+				pull.tween_property(c, "position", c.position + toward, 0.16).set_ease(Tween.EASE_OUT)
+				pull.tween_property(c, "position", c.position, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			await g.wait(0.18)
 			await g.stamp("DEDUCTION", "red" if found.get("strong", false) else "ink")
 			line.queue_free()
 			var dc := deduction_card(found)
 			ded_box.add_child(dc)
+			dc.modulate.a = 0.0
+			dc.pivot_offset = Vector2(160, 40)
+			dc.scale = Vector2(1.15, 1.15)
+			var drop := dc.create_tween().set_parallel(true)
+			drop.tween_property(dc, "modulate:a", 1.0, 0.18)
+			drop.tween_property(dc, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			g.sfx("pin")
 			await g.say([found.sam])
 			g.ensure_visible(dc)
 		for id in st.sel:

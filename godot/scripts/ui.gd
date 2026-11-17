@@ -1,18 +1,19 @@
 class_name UI
 ## Small builders for the paper-and-ink interface. No game rules live here.
 
-const INK := Color("1c2530")
-const SOFT := Color("586270")
-const PAPER := Color("fcf9f0")
-const PAPER2 := Color("f3ecda")
-const MANILA := Color("ecd29b")
-const RULE := Color("d6ccb4")
-const RED := Color("c2271c")
-const RED_SOFT := Color("f6dcd6")
-const BLUE := Color("23447c")
-const BLUE_SOFT := Color("e3eaf6")
-const GREEN := Color("2d7a3b")
-const YELLOW := Color("fff3b8")
+# Ink and watercolour: deep ink blue, warm parchment, one red accent.
+const INK := Color("1e2c4a")
+const SOFT := Color("56627a")
+const PAPER := Color("faf3e1")
+const PAPER2 := Color("efe3c6")
+const MANILA := Color("e8d3a0")
+const RULE := Color("d8c7a4")
+const RED := Color("b3261e")
+const RED_SOFT := Color("f3d9cf")
+const BLUE := Color("2c4a7c")
+const BLUE_SOFT := Color("e2e6ee")
+const GREEN := Color("2c4a7c")   # "correct" marks use ink blue: red is the only accent
+const YELLOW := Color("f6e7b0")
 
 static var serif: Font
 static var serif_b: Font
@@ -204,6 +205,14 @@ static func button(text: String, kind := "primary", tid := "") -> Button:
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(c, fg)
 	b.add_theme_color_override("font_disabled_color", Color(fg, 0.6))
+	# squash on press, spring back on release
+	b.button_down.connect(func() -> void:
+		b.pivot_offset = b.size * 0.5
+		var tw := b.create_tween()
+		tw.tween_property(b, "scale", Vector2(0.96, 0.93), 0.05))
+	b.button_up.connect(func() -> void:
+		var tw := b.create_tween()
+		tw.tween_property(b, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 	if tid != "":
 		mark(b, tid)
 	return b

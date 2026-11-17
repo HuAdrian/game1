@@ -74,6 +74,15 @@ var fields: Array = []         # typed-answer boxes on screen
 var trauma := 0.0
 var shake_t := 0.0
 var sound_on := true
+var shake_on := true
+var tension := 0.0          # interrogation pressure, 0..1
+var tension_who := ""
+var beat_t := 0.0           # time until the next clock tick or heartbeat
+var vignette: TextureRect
+var wash: ColorRect         # brief red wash on mistakes and big moments
+var outgoing: Control       # documents sliding off the desk
+var pressure_player: AudioStreamPlayer
+var doc_rise := 0.0         # documents land from slightly below
 var sfx_cache: Dictionary = {}
 var players: Array = []
 var publish_t := 0.0
@@ -97,6 +106,8 @@ func _ready() -> void:
 	_build()
 	voice_player = AudioStreamPlayer.new()
 	add_child(voice_player)
+	pressure_player = AudioStreamPlayer.new()
+	add_child(pressure_player)
 	for i in 8:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -104,6 +115,7 @@ func _ready() -> void:
 	var prefs = _read_json("user://prefs.json")
 	if prefs is Dictionary:
 		sound_on = prefs.get("sound", true)
+		shake_on = prefs.get("shake", true)
 	if web and test_mode:
 		js_cb = JavaScriptBridge.create_callback(_js_show)
 		JavaScriptBridge.get_interface("window").cfShow = js_cb
@@ -134,6 +146,23 @@ func _build() -> void:
 	actors_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	actors_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	scene_view.add_child(actors_layer)
+	vignette = TextureRect.new()
+	var grad := Gradient.new()
+	grad.set_color(0, Color(UI.INK, 0.0))
+	grad.set_color(1, Color(UI.INK, 0.85))
+	grad.add_point(0.55, Color(UI.INK, 0.0))
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.55)
+	gt.fill_to = Vector2(1.05, 1.05)
+	vignette.texture = gt
+	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vignette.modulate.a = 0.0
+	scene_view.add_child(vignette)
 	var edge := ColorRect.new()
 	edge.color = UI.INK
 	edge.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -217,6 +246,15 @@ func _build() -> void:
 	dlg_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dlg_catch.add_child(dlg_panel)
 
+	outgoing = Control.new()
+	outgoing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	outgoing.clip_contents = true
+	col.add_child(outgoing)
+	col.move_child(outgoing, col.get_children().find(scroll))
+	wash = ColorRect.new()
+	wash.color = Color(UI.RED, 0.0)
+	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(wash)
 	overlay = Control.new()
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(overlay)
@@ -261,6 +299,10 @@ func _layout() -> void:
 			x = (w - aw) * 0.5
 		a.holder.position = Vector2(x, sh - ah - 2.0)
 		a.holder.size = Vector2(aw, ah)
+		a.holder.pivot_offset = Vector2(aw * 0.5, ah)
+		if tension > 0.0 and who == tension_who:
+			# the suspect trembles more as his composure goes
+			a.holder.position.x += sin(shake_t * 3.1 + Time.get_ticks_msec() * 0.031) * 2.6 * tension
 		a.sprite.pivot_offset = Vector2(aw * 0.5, ah)
 	# an object standing in the scene, overlapping its lower edge
 	var prop_h: float = prop_box.get_combined_minimum_size().y if prop_box.get_child_count() > 0 else 0.0
@@ -277,7 +319,7 @@ func _layout() -> void:
 	tray_panel.visible = tray_h > 0.0
 	tray_panel.size = Vector2(w, tray_h)
 	tray_panel.position = Vector2(0, vp.y - tray_h)
-	scroll.position = Vector2(0, y)
+	scroll.position = Vector2(0, y + doc_rise)
 	scroll.size = Vector2(w, max(0.0, vp.y - tray_h - y))
 	toasts.position = Vector2(16, hud_h + 8.0)
 	toasts.size = Vector2(w - 32, 0)
@@ -286,9 +328,11 @@ func _layout() -> void:
 	var dh: float = dlg_panel.get_combined_minimum_size().y
 	dlg_panel.size = Vector2(w - 20, dh)
 	dlg_panel.position = Vector2(10, vp.y - dh - 12)
-	for c in [overlay, sheet, wipe]:
+	for c in [overlay, sheet, wipe, wash]:
 		c.position = Vector2.ZERO
 		c.size = Vector2(w, vp.y)
+	outgoing.position = scroll.position
+	outgoing.size = scroll.size
 	if sheet.visible and is_instance_valid(sheet_content):
 		sheet_content.size = Vector2(w, 0)
 		var ch: float = min(sheet_content.get_combined_minimum_size().y, vp.y * 0.92)
@@ -301,6 +345,7 @@ func _process(dt: float) -> void:
 		trauma = max(0.0, trauma - 1.7 * dt)   # always decays back to rest
 		shake_t += dt * 30.0
 	_layout()
+	_pressure(dt)
 	if web_page:
 		_sync_fields()
 	if web and test_mode:
@@ -357,6 +402,13 @@ func wait(sec: float) -> void:
 	await get_tree().create_timer(sec).timeout
 
 
+func _sfx_stream(name: String) -> Variant:
+	if not sfx_cache.has(name):
+		var path := "res://assets/audio/%s.wav" % name
+		sfx_cache[name] = load(path) if ResourceLoader.exists(path) else null
+	return sfx_cache[name]
+
+
 func sfx(name: String) -> void:
 	if not sound_on:
 		return
@@ -376,24 +428,105 @@ func sfx(name: String) -> void:
 
 
 func shake(amount: float) -> void:
-	trauma = min(1.0, trauma + amount)
+	if shake_on:
+		trauma = min(1.0, trauma + amount)
 
 
+## One bundle per event size, so every moment stays in proportion.
+##   small: a tap or a pick-up.  right / wrong: an answer.  medium: a pin or a stamp.
+##   large: a contradiction, a deduction, a confession, a verdict.
 func feedback(tier: String) -> void:
 	match tier:
 		"large":
 			sfx("thud")
 			shake(0.75)
+			_punch(1.06)
+			_wash(Color(UI.RED, 0.16))
 		"medium":
 			sfx("thud_soft")
 			shake(0.35)
+			_punch(1.025)
 		"wrong":
 			sfx("bad")
 			shake(0.3)
+			_wash(Color(UI.RED, 0.12))
 		"right":
 			sfx("good")
+			shake(0.1)
+			_wash(Color(UI.BLUE, 0.07))
 		_:
 			sfx("tick")
+
+
+## A quick push in on the scene, then back: the camera leaning in on a big moment.
+func _punch(amount: float) -> void:
+	scene_view.pivot_offset = scene_view.size * Vector2(0.5, 0.6)
+	var tw := scene_view.create_tween()
+	tw.tween_property(scene_view, "scale", Vector2(amount, amount), 0.07).set_ease(Tween.EASE_OUT)
+	tw.tween_property(scene_view, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## A brief tinted wash over everything (no bright flashes).
+func _wash(c: Color) -> void:
+	wash.color = c
+	var tw := wash.create_tween()
+	tw.tween_property(wash, "color:a", 0.0, 0.35).set_ease(Tween.EASE_OUT)
+
+
+## Interrogation pressure, 0..1: the vignette closes in, the heartbeat speeds up and
+## the suspect trembles. 0 lets it all go.
+func set_tension(value: float, who := "") -> void:
+	tension = clamp(value, 0.0, 1.0)
+	tension_who = who
+	var tw := vignette.create_tween()
+	tw.tween_property(vignette, "modulate:a", 0.25 + 0.6 * tension if tension > 0.0 else 0.0, 0.5)
+
+
+## Clock pressure near the deadline, and the heartbeat of an interrogation.
+func _pressure(dt: float) -> void:
+	var interval := 0.0
+	var kind := ""
+	var vol := -60.0
+	if in_case and data.has("clock") and scenes.current != "report" and scenes.current != "":
+		var left := deadline() - now()
+		if left <= 0:
+			interval = 1.25
+			kind = "heart"
+			vol = -16.0
+		elif left <= 15:
+			interval = 0.7
+			kind = "tock"
+			vol = -12.0
+		elif left <= 30:
+			interval = 1.0
+			kind = "tock"
+			vol = -17.0
+		var pulse := 1.0 + (0.06 * sin(Time.get_ticks_msec() * 0.009) if left <= 15 else 0.0)
+		clock_face.scale = Vector2(pulse, pulse) if clock_face.scale.x < 1.2 else clock_face.scale
+	if tension > 0.0:
+		interval = 1.3 - 0.6 * tension
+		kind = "heart"
+		vol = -14.0 + 8.0 * tension
+	if kind == "":
+		beat_t = 0.0
+		return
+	beat_t -= dt
+	if beat_t <= 0.0:
+		beat_t = interval
+		if sound_on:
+			var st = _sfx_stream(kind)
+			if st:
+				pressure_player.stream = st
+				pressure_player.volume_db = vol
+				pressure_player.play()
+		if kind == "heart":
+			_punch(1.0 + 0.012 * max(tension, 0.4))
+
+
+func _input(event: InputEvent) -> void:
+	# instant feedback: every tap leaves an ink ripple where it landed
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		InkRipple.at(overlay, col.get_global_transform().affine_inverse() * event.position)
 
 
 func save() -> void:
@@ -485,7 +618,11 @@ func set_mood(who: String, mood: String) -> void:
 	moods[who] = mood
 	if actors.has(who) and actors[who].mood != mood:
 		actors[who].mood = mood
-		actors[who].sprite.texture = _actor_texture(who, mood)
+		var sp: TextureRect = actors[who].sprite
+		sp.texture = _actor_texture(who, mood)
+		var tw := sp.create_tween()
+		tw.tween_property(sp, "scale", Vector2(1.06, 0.95), 0.06)
+		tw.tween_property(sp, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## A physical reaction: flinch (caught out), hop (pleased), nod (speaking), slump.
@@ -518,7 +655,11 @@ func react(who: String, kind: String) -> void:
 func _spotlight(who: String) -> void:
 	for other in actors:
 		var lit: bool = other == who or not actors.has(who)
-		actors[other].sprite.self_modulate = Color.WHITE if lit else Color(0.62, 0.62, 0.66)
+		var a: Dictionary = actors[other]
+		a.sprite.self_modulate = Color.WHITE if lit else Color(0.66, 0.68, 0.76)
+		var target := Vector2(1.04, 1.04) if (lit and actors.has(who)) else (Vector2.ONE if lit else Vector2(0.96, 0.96))
+		var tw: Tween = a.holder.create_tween()
+		tw.tween_property(a.holder, "scale", target, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 # ───────────────────────── desk: documents, tray, props ─────────────────────────
@@ -531,7 +672,9 @@ func _clear(box: Node) -> void:
 
 ## Deals documents onto the desk. An empty list clears it and opens the place out.
 func set_work(nodes: Array) -> void:
-	_clear(work)
+	var had := work.get_child_count() > 0
+	if had:
+		_send_off(work)
 	scroll.scroll_vertical = 0
 	for n in nodes:
 		if n != null:
@@ -545,6 +688,39 @@ func set_work(nodes: Array) -> void:
 		var tw := create_tween().set_parallel(true)
 		tw.tween_property(scroll, "modulate:a", 1.0, 0.2)
 		tw.tween_property(scroll, "rotation", 0.0, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		doc_rise = 28.0
+		var rise := create_tween()
+		rise.tween_property(self, "doc_rise", 0.0, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	elif had:
+		sfx("close")
+
+
+## Moves the documents on the desk into a layer that slides them away and frees them.
+## They stop taking input at once and are no longer seen by the playtest hooks.
+func _send_off(box: Node) -> void:
+	var holder := VBoxContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_theme_constant_override("separation", 12)
+	holder.position = Vector2(12, 12 - scroll.scroll_vertical)
+	holder.size = Vector2(scroll.size.x - 24, 0)
+	outgoing.add_child(holder)
+	for c in box.get_children():
+		box.remove_child(c)
+		holder.add_child(c)
+		_disarm(c)
+	var tw := holder.create_tween().set_parallel(true)
+	tw.tween_property(holder, "position:y", holder.position.y + 70.0, 0.24).set_ease(Tween.EASE_IN)
+	tw.tween_property(holder, "modulate:a", 0.0, 0.24)
+	tw.chain().tween_callback(holder.queue_free)
+
+
+func _disarm(n: Node) -> void:
+	if n is Control:
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if n.is_in_group("tid"):
+		n.remove_from_group("tid")
+	for c in n.get_children():
+		_disarm(c)
 
 
 func set_head(nodes: Array) -> void:
@@ -818,6 +994,14 @@ func ask_hint() -> void:
 	var ok = await confirm("Ask Sam?", "Sam will show you where to look, not what the answer is. It costs %d minutes on the case clock. %d of %d hints left." % [int(data.hintCost), int(state.hints_left), int(data.hints)], "Ask Sam", "Not yet")
 	if not ok:
 		return
+	sfx("hint")
+	hint_btn.pivot_offset = hint_btn.size * 0.5
+	var tw := hint_btn.create_tween()
+	tw.tween_property(hint_btn, "modulate", Color(1.0, 0.55, 0.5), 0.12)
+	tw.parallel().tween_property(hint_btn, "scale", Vector2(1.12, 1.12), 0.12)
+	tw.tween_property(hint_btn, "modulate", Color.WHITE, 0.4)
+	tw.parallel().tween_property(hint_btn, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	react("sam", "hop")
 	var used = await hint_fn.call()
 	if used is bool and used == false:
 		return
@@ -1118,7 +1302,9 @@ func add_field(id: String, label: String, caps := false) -> LineEdit:
 		le.add_theme_stylebox_override(s, line)
 	UI.mark(le, "field-" + id)
 	le.text_changed.connect(func(_t: String) -> void: sfx("key"))
-	var f := {"id": id, "le": le, "label": label, "caps": caps, "locked": false, "force": null, "last": ""}
+	# A new field starts empty. The page keeps one HTML box per field id, so on the Web
+	# the box is told to clear once, or a retry call would show the earlier answer.
+	var f := {"id": id, "le": le, "label": label, "caps": caps, "locked": false, "force": "" if web_page else null, "last": ""}
 	if web_page:
 		le.editable = false
 		le.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1190,7 +1376,7 @@ func _sync_fields() -> void:
 	var covered := dlg_catch.visible or sheet.visible or wipe.visible
 	var list: Array = []
 	var clip := scroll.get_global_rect()
-	fields = fields.filter(func(x: Dictionary) -> bool: return is_instance_valid(x.le) and x.le.is_inside_tree())
+	fields = fields.filter(func(x: Dictionary) -> bool: return is_instance_valid(x.le) and x.le.is_inside_tree() and not outgoing.is_ancestor_of(x.le))
 	for f in fields:
 		var le: LineEdit = f.le
 		var r := le.get_global_rect()
@@ -1237,7 +1423,7 @@ func open_notebook(tab: String) -> void:
 	var title := UI.label("Notebook", 32, UI.hand_b, UI.BLUE)
 	var style := UI.box(UI.PAPER, 16, 6)
 	style.border_width_top = 12
-	style.border_color = Color("2b3440")
+	style.border_color = Color("22345a")
 	var p := UI.panel(style, [UI.vbox([UI.hbox([title, close]), tab_row, sc], 8)])
 	var w := _open_sheet(p, "nb-dim")
 	var fill := func(id: String) -> void:
@@ -1274,7 +1460,7 @@ func open_notebook(tab: String) -> void:
 			for f in state.facts:
 				body.add_child(UI.tag(f.title, UI.RED, 14))
 				body.add_child(UI.label(f.text, 20, UI.hand, UI.BLUE))
-				body.add_child(UI.rule(Color("cfd9e6")))
+				body.add_child(UI.rule(Color("c9d1de")))
 			if in_case:
 				var leave := UI.button("Leave case (progress is saved)", "ghost", "nb-leave")
 				leave.pressed.connect(func() -> void:
@@ -1424,7 +1610,7 @@ func home() -> void:
 			var again := UI.button("Start again from the beginning", "ghost", "restart-case")
 			again.pressed.connect(func() -> void: start(c, null))
 			rows.append(again)
-		kids.append(UI.panel(UI.box(UI.MANILA, 18, 8, 2, Color("9a7a35"), 7), [UI.vbox(rows, 8)]))
+		kids.append(UI.panel(UI.box(UI.MANILA, 18, 8, 2, Color("8a6a35"), 7), [UI.vbox(rows, 8)]))
 	var check := UI.button("Sound check", "ghost", "sound-check")
 	check.pressed.connect(sound_check)
 	var bank := UI.button("My word bank", "ghost", "word-bank")
@@ -1434,10 +1620,18 @@ func home() -> void:
 	snd.text = "Sound effects: " + ("on" if sound_on else "off")
 	snd.pressed.connect(func() -> void:
 		sound_on = not sound_on
-		_write_json("user://prefs.json", {"sound": sound_on})
+		_write_json("user://prefs.json", {"sound": sound_on, "shake": shake_on})
 		snd.text = "Sound effects: " + ("on" if sound_on else "off")
 		sfx("good"))
 	kids.append(snd)
+	var shk := UI.button("", "ghost", "toggle-shake")
+	shk.text = "Screen shake: " + ("on" if shake_on else "off")
+	shk.pressed.connect(func() -> void:
+		shake_on = not shake_on
+		_write_json("user://prefs.json", {"sound": sound_on, "shake": shake_on})
+		shk.text = "Screen shake: " + ("on" if shake_on else "off")
+		shake(0.4))
+	kids.append(shk)
 	var note := UI.label("Calls and radio messages are spoken aloud. Turn your sound on, or use headphones.", 15, UI.serif_i, UI.SOFT)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	kids.append(note)

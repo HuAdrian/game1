@@ -14,6 +14,16 @@
  * answers are typed through the host keyboard stand-in, every clip that plays is
  * recorded, and the result code is read from the host clipboard.
  *
+ * Options for focused checks (all off by default, which plays the fixed route):
+ *   ROUTE=wiretap,tail   follow only these leads        STOP=1  end after the leads
+ *   TYPED='{"time":"6.15 p.m."}'  type these instead of the case's answers in the
+ *                        first wiretap round; RETYPED='{...}' for the retry round
+ *   TAIL_FIRST=D         send the team to this building first (reaches the retry radio)
+ *   HINT=address         spend a hint on that wiretap field after the tape plays
+ *   RESTART=1            reload at the end and read the word bank back; in MINI mode
+ *                        Godot's own user:// storage is wiped first, so only the
+ *                        host-storage copy can bring it back
+ *
  * Needs Playwright with Chromium. Speech is replaced by a silent stand-in that
  * takes a realistic time per line; nothing else is stubbed.
  */
@@ -25,7 +35,7 @@ const SHOTS = process.env.SHOTS || '';
 const MINI = !!process.env.MINI;
 
 // The fixed route: every main lead, plus one optional lead so every scene type is played.
-const ROUTE = ['wiretap', 'tail', 'interrogation', 'sales', 'forgery', 'note', 'frontdesk'];
+const ROUTE = process.env.ROUTE ? process.env.ROUTE.split(',') : ['wiretap', 'tail', 'interrogation', 'sales', 'forgery', 'note', 'frontdesk'];
 const lead = id => CASE.leads.find(l => l.id === id).scene;
 
 (async () => {
@@ -111,11 +121,24 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
     const sc = lead(id);
     await doc('lead-' + id); await settle(); await shot(id);
     if (sc.type === 'wiretap') {
+      const typed = JSON.parse(process.env.TYPED || '{}'), retyped = JSON.parse(process.env.RETYPED || '{}');
       await click('tape-play');
-      for (const f of sc.form.fields) await type(f.id, f.answer);
-      await enabled('submit-notes'); await click('submit-notes'); await settle();
+      for (const f of sc.form.fields) await type(f.id, f.id in typed ? typed[f.id] : f.answer);
+      await enabled('submit-notes'); await shot('wiretap-typed');
+      if (process.env.HINT) { await click('hint'); await p.waitForTimeout(400); await click('confirm-yes'); await settle(); }
+      await click('submit-notes'); await p.waitForTimeout(900); await shot('wiretap-marked'); await settle();
+      if ((await T()).items['tape-play']) {   // a lead went cold: the retry call reopens only the wrong fields
+        const marks = (await T()).marks.L || {};
+        await click('tape-play');
+        for (const f of sc.form.fields) if (marks[sc.id + '.' + f.id] && !marks[sc.id + '.' + f.id].ok) await type(f.id, f.id in retyped ? retyped[f.id] : f.answer);
+        await enabled('submit-notes'); await shot('wiretap-retyped'); await click('submit-notes'); await p.waitForTimeout(900); await settle();
+      }
     } else if (sc.type === 'tail') {
       await click('tape-play');
+      if (process.env.TAIL_FIRST) {
+        await doc('map-' + process.env.TAIL_FIRST); await enabled('send-team'); await click('send-team'); await settle();
+        await click('tape-play');
+      }
       await doc('map-' + sc.answer); await enabled('send-team'); await click('send-team'); await settle();
       await click('proceed'); await settle();
     } else if (sc.type === 'interrogation') {
@@ -124,7 +147,11 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
         if (s.verdict !== 'NG') await doc('line-' + s.proof[0]);
         await p.waitForTimeout(400); await settle();
       }
-      for (const cs of sc.cardStatements) { await click('present'); await p.waitForTimeout(400); await click('pick-' + cs.card); await p.waitForTimeout(300); await settle(); }
+      for (const cs of sc.cardStatements) {
+        if ((await T()).evidence.includes(cs.card)) { await click('present'); await p.waitForTimeout(400); await click('pick-' + cs.card); }
+        else await click('pass');
+        await p.waitForTimeout(300); await settle();
+      }
       await settle();
     } else if (sc.type === 'chart') {
       await doc('sent-' + sc.sentences.find(s => s.false).id); await settle();
@@ -145,6 +172,13 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
     await log('after ' + id);
   }
 
+  if (process.env.STOP) {
+    const t = await T(), voice = await p.evaluate(() => window.__voiceSeq);
+    console.log('CLIPS', JSON.stringify(voice));
+    console.log('STOPPED', JSON.stringify({ mini: t.mini, marks: t.marks, clock: t.clock, words: t.words, consoleErrors: [...new Set(errs)] }));
+    await b.close(); return;
+  }
+
   // evidence board: every deduction the held cards allow, in the order the case lists them
   await click('hub-leave'); await p.waitForTimeout(400); if ((await T()).items['confirm-yes']) await click('confirm-yes');
   await settle(); await p.waitForTimeout(1500); await settle(); await shot('board');
@@ -152,7 +186,10 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
   for (const d of CASE.board.deductions) {
     const key = d.same || d.id;
     if (made.has(key) || !d.cards.every(c => held.includes(c))) continue;
-    await doc('card-' + d.cards[0]); await doc('card-' + d.cards[1]); await click('connect'); await p.waitForTimeout(500); await settle();
+    await doc('card-' + d.cards[0]); await doc('card-' + d.cards[1]);
+    await click('connect');
+    // every connection ends with Sam saying something; the payoff plays first
+    await p.waitForFunction(() => JSON.parse(window.cfTJson).dlg, null, { timeout: 15000 }); await p.waitForTimeout(500); await settle();
     made.add(key);
   }
   console.log('  deductions:', (await T()).deductions.join(','));
@@ -174,5 +211,13 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
   if (MINI) console.log('CLIPS', JSON.stringify(voice));
   console.log('RESULT', JSON.stringify({ engine, mini: t.mini, code, words: t.words, clipsPlayed: voice.length, ending: t.ending.verdict, clock: t.clock, deductions: t.deductions,
     firstTry: { L: sum('L'), R: sum('R'), W: sum('W') }, consoleErrors: [...new Set(errs)] }));
+  if (process.env.RESTART) {
+    if (MINI) await p.evaluate(async () => { for (const d of await indexedDB.databases()) indexedDB.deleteDatabase(d.name); });
+    await p.reload();
+    await p.waitForFunction(() => window.cfTJson, null, { timeout: 120000 });
+    await p.waitForTimeout(800);
+    const r = await T();
+    console.log('AFTER RESTART', JSON.stringify({ words: r.words, wiped_user_storage: MINI }));
+  }
   await b.close();
 })().catch(e => { console.error('FAILED', e.message.split('\n')[0]); process.exit(1); });

@@ -17,8 +17,10 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="Case Files"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
-boot_splash/bg_color=Color(0.847, 0.765, 0.604, 1)
-boot_splash/show_image=false
+boot_splash/bg_color=Color(0.94509804, 0.89411765, 0.7764706, 1)
+boot_splash/image="res://assets/ui/emblem.png"
+config/icon="res://assets/ui/emblem.png"
+boot_splash/fullsize=false
 
 [autoload]
 
