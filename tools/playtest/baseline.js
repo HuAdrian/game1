@@ -10,6 +10,10 @@
  *   python3 -m http.server 8765        (from the folder holding index.html)
  *   node tools/playtest/baseline.js [url]
  *
+ * MINI=1 plays a MiniGame-preset build served by tools/playtest/minigame/serve.py:
+ * answers are typed through the host keyboard stand-in, every clip that plays is
+ * recorded, and the result code is read from the host clipboard.
+ *
  * Needs Playwright with Chromium. Speech is replaced by a silent stand-in that
  * takes a realistic time per line; nothing else is stubbed.
  */
@@ -18,13 +22,14 @@ const { chromium } = require('playwright');
 const CASE = JSON.parse(fs.readFileSync(path.join(__dirname, '../../godot/cases/missing_violinist.json'), 'utf8'));
 const URL = process.argv[2] || 'http://localhost:8765/index.html';
 const SHOTS = process.env.SHOTS || '';
+const MINI = !!process.env.MINI;
 
 // The fixed route: every main lead, plus one optional lead so every scene type is played.
 const ROUTE = ['wiretap', 'tail', 'interrogation', 'sales', 'forgery', 'note', 'frontdesk'];
 const lead = id => CASE.leads.find(l => l.id === id).scene;
 
 (async () => {
-  const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const ctx = await b.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true });
   await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new globalThis.URL(URL).origin });
   const p = await ctx.newPage();
@@ -33,7 +38,12 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
   p.on('response', r => { if (r.status() >= 400) errs.push(r.status() + ' ' + new globalThis.URL(r.url()).pathname); });
   let engine = null;
   p.on('console', m => { const t = m.text(); if (/^Godot Engine v/.test(t)) engine = t.split(' - ')[0]; if (/ERROR|SCRIPT/.test(t) || (m.type() === 'error' && !/Failed to load resource/.test(t))) errs.push(t.slice(0, 300)); });
+  // every clip that starts playing, in order
   await p.addInitScript(() => {
+    window.__voiceSeq = []; let last = '';
+    setInterval(() => { try { const v = JSON.parse(window.cfTJson || '{}').voice || ''; if (v && v !== last) window.__voiceSeq.push(v); last = v; } catch (e) {} }, 40);
+  });
+  if (!MINI) await p.addInitScript(() => {
     class U { constructor(t) { this.text = t; } }
     window.SpeechSynthesisUtterance = U;
     const q = []; let busy = false;
@@ -43,12 +53,12 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
       getVoices: () => [{ name: 'Google UK English Female', lang: 'en-GB' }, { name: 'Google UK English Male', lang: 'en-GB' }],
       speak: u => { q.push(u); pump(); }, cancel() { q.length = 0; }, resume() {}, addEventListener() {} } });
   });
-  await p.goto(URL + '?cftest=1');
-  await p.waitForFunction(() => window.cfT && window.cfT.items, null, { timeout: 120000 });
+  await p.goto(URL + (MINI ? '' : '?cftest=1'));
+  await p.waitForFunction(() => window.cfTJson, null, { timeout: 120000 });
 
   let n = 0;
   const shot = async name => { if (SHOTS) await p.screenshot({ path: path.join(SHOTS, String(++n).padStart(2, '0') + '-' + name + '.png') }); };
-  const T = () => p.evaluate(() => window.cfT);
+  const T = () => p.evaluate(() => JSON.parse(window.cfTJson || 'null'));
   const box = () => p.evaluate(() => { const r = document.querySelector('canvas').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; });
   const tapAt = async (it, fy = 0.5) => { const c = await box(); await p.mouse.click(c[0] + (it[0] + it[2] / 2) * c[2], c[1] + (it[1] + it[3] * fy) * c[3]); };
   const settle = async (max = 150) => {
@@ -66,7 +76,7 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
   const fresh = async id => {
     let a = await T();
     for (let i = 0; i < 40; i++) {
-      await p.waitForFunction(k => window.cfT.tick > k, a.tick, { timeout: 15000 });
+      await p.waitForFunction(k => window.cfTJson && JSON.parse(window.cfTJson).tick > k, a.tick, { timeout: 15000 });
       const c = await T();
       if (JSON.stringify(a.items[id]) === JSON.stringify(c.items[id]) && a.dlg === c.dlg && a.wipe === c.wipe && a.sheet === c.sheet) return c;
       a = c;
@@ -87,8 +97,10 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
     throw new Error('never found ' + id + '; on screen: ' + Object.keys((await T()).items).join(','));
   };
   const doc = id => click(id, true);
-  const enabled = async id => { for (let i = 0; i < 300; i++) { const t = await T(); if (t.items[id] && !t.items[id][4]) return; await p.waitForTimeout(150); } throw new Error('never enabled: ' + id); };
-  const type = async (id, text) => { await p.locator('#cf-' + id).tap(); await p.keyboard.type(text, { delay: 8 }); };
+  const enabled = async id => { for (let i = 0; i < 1600; i++) { const t = await T(); if (t.items[id] && !t.items[id][4]) return; await p.waitForTimeout(150); } throw new Error('never enabled: ' + id); };
+  const type = MINI
+    ? async (id, text) => { await doc('field-' + id); await p.waitForFunction(() => window.__kb.open, null, { timeout: 10000 }); await p.evaluate(t => { window.__kb.type(t); window.__kb.done(); }, text); await p.waitForTimeout(200); }
+    : async (id, text) => { await p.locator('#cf-' + id).tap(); await p.keyboard.type(text, { delay: 8 }); };
   const log = async label => { const t = await T(); console.log(('  ' + label).padEnd(24), t.clock.padEnd(9), 'cards:', t.evidence.join(',')); };
 
   // ── play ──
@@ -155,10 +167,12 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
   await click('proceed'); await settle(); await click('proceed'); await p.waitForTimeout(900); await shot('report');
 
   await click('copy'); await p.waitForTimeout(300);
-  const code = await p.evaluate(() => navigator.clipboard.readText());
+  const code = await p.evaluate(m => m ? window.__clipboard : navigator.clipboard.readText(), MINI);
   const t = await T();
   const sum = s => { const m = t.marks[s] || {}; const k = Object.keys(m); return k.filter(x => m[x].ok).length + '/' + k.length; };
-  console.log('RESULT', JSON.stringify({ engine, code, ending: t.ending.verdict, clock: t.clock, deductions: t.deductions,
+  const voice = await p.evaluate(() => window.__voiceSeq);
+  if (MINI) console.log('CLIPS', JSON.stringify(voice));
+  console.log('RESULT', JSON.stringify({ engine, mini: t.mini, code, words: t.words, clipsPlayed: voice.length, ending: t.ending.verdict, clock: t.clock, deductions: t.deductions,
     firstTry: { L: sum('L'), R: sum('R'), W: sum('W') }, consoleErrors: [...new Set(errs)] }));
   await b.close();
 })().catch(e => { console.error('FAILED', e.message.split('\n')[0]); process.exit(1); });

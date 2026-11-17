@@ -87,8 +87,11 @@ func _ready() -> void:
 	sdk = get_node_or_null("/root/MiniGameSDK")
 	mini = web and sdk != null and bool(sdk.get("is_mini_game"))
 	web_page = web and not mini
-	if web_page:
-		test_mode = bool(JavaScriptBridge.eval("window.cfTestMode === true"))
+	if web:
+		# Playtest hooks stay off unless a test page sets window.cfTestMode. Plain
+		# property access only: a mini game host may not allow eval.
+		var win = JavaScriptBridge.get_interface("window")
+		test_mode = win != null and win.cfTestMode == true
 	if mini:
 		sdk.keyboard_event.connect(_on_keyboard)
 	_build()
@@ -101,7 +104,7 @@ func _ready() -> void:
 	var prefs = _read_json("user://prefs.json")
 	if prefs is Dictionary:
 		sound_on = prefs.get("sound", true)
-	if web_page and test_mode:
+	if web and test_mode:
 		js_cb = JavaScriptBridge.create_callback(_js_show)
 		JavaScriptBridge.get_interface("window").cfShow = js_cb
 	home()
@@ -300,11 +303,11 @@ func _process(dt: float) -> void:
 	_layout()
 	if web_page:
 		_sync_fields()
-		if test_mode:
-			publish_t -= dt
-			if publish_t <= 0.0:
-				publish_t = 0.12
-				_publish()
+	if web and test_mode:
+		publish_t -= dt
+		if publish_t <= 0.0:
+			publish_t = 0.12
+			_publish()
 
 
 # ───────────────────────── small helpers ─────────────────────────
@@ -733,8 +736,14 @@ func mark(skill: String, id: String, ok: bool, weight := 1) -> void:
 	save()
 
 
+const WORDS_KEY := "casefiles.words"
+
 func words() -> Array:
 	var v = _read_json("user://words.json")
+	if mini and not (v is Array and not v.is_empty()):
+		# The host writes user:// back to its storage every few seconds and when the
+		# game is hidden; the copy in its synchronous storage covers the gap.
+		v = JSON.parse_string(sdk.storage_get(WORDS_KEY, "[]"))
 	return v if v is Array else []
 
 
@@ -747,6 +756,8 @@ func word(entry: Variant) -> void:
 			return
 	list.append({"t": entry.t, "a": entry.a, "b": entry.b, "n": entry.get("n", ""), "c": data.title})
 	_write_json("user://words.json", list)
+	if mini:
+		sdk.storage_set(WORDS_KEY, JSON.stringify(list))
 	toast("Saved to notebook: " + (entry.b if entry.t == "grammar" else entry.a), "note")
 	sfx("pen")
 
@@ -1498,8 +1509,10 @@ func _publish() -> void:
 	var st := {"items": items, "dlg": dlg_catch.visible, "wipe": wipe.visible, "sheet": sheet.visible, "in_case": in_case,
 		"clock": clock_label.text, "phase": state.get("phase", "home"), "scene": scenes.current, "evidence": state.get("evidence", []),
 		"deductions": state.get("deductions", []), "ending": state.get("ending"), "tick": Engine.get_process_frames(), "marks": state.get("marks", {}), "trauma": trauma,
-		"scroll": [scroll.position.y / vp.y, (scroll.position.y + scroll.size.y) / vp.y]}
-	JavaScriptBridge.eval("window.cfT = %s;" % JSON.stringify(st))
+		"scroll": [scroll.position.y / vp.y, (scroll.position.y + scroll.size.y) / vp.y],
+		"mini": mini, "voice": voice_player.stream.resource_path.get_file() if voice_player.playing and voice_player.stream else "",
+		"typing": key_field, "words": words().size()}
+	JavaScriptBridge.get_interface("window").cfTJson = JSON.stringify(st)
 
 
 ## Lets the playtest ask for an off-screen control to be scrolled into view.
