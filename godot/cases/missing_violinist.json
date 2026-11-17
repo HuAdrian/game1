@@ -79,6 +79,7 @@
     }
   },
   "soundCheck": "This is Unit Nine. If you can hear this, your equipment is working.",
+  "soundCheckAudio": "soundcheck.mp3",
   "briefing": {
     "id": "briefing",
     "place": "unit9",
@@ -288,6 +289,20 @@
           "When you arrive, ask at the desk for my assistant, Mr Okoro. That’s O, K, O, R, O.",
           "Bring the policy with you. Goodbye."
         ],
+        "audio": [
+          "wiretap_01.mp3",
+          "wiretap_02.mp3",
+          "wiretap_03.mp3",
+          "wiretap_04.mp3",
+          "wiretap_05.mp3",
+          "wiretap_06.mp3",
+          "wiretap_07.mp3",
+          "wiretap_08.mp3",
+          "wiretap_09.mp3",
+          "wiretap_10.mp3",
+          "wiretap_11.mp3",
+          "wiretap_12.mp3"
+        ],
         "hintLine": "I’ll wind the tape back to the part you need. Just that part.",
         "success": [
           "Every detail right. PC Bassi is on his way to Mercer Street, and he’ll be waiting when Victor walks in."
@@ -309,6 +324,15 @@
             "And you do know we’ve moved? People keep going to our old office in Marsh Street.",
             "We’re in Mercer Street now, M, E, R, C, E, R, at number forty-eight. Four, eight.",
             "Is that everything? Lovely. Goodbye."
+          ],
+          "audio": [
+            "wiretap_retry_01.mp3",
+            "wiretap_retry_02.mp3",
+            "wiretap_retry_03.mp3",
+            "wiretap_retry_04.mp3",
+            "wiretap_retry_05.mp3",
+            "wiretap_retry_06.mp3",
+            "wiretap_retry_07.mp3"
           ],
           "lines": {
             "caller": [
@@ -383,6 +407,17 @@
           "At the top of the lane, he’s turning right, into Canal Road.",
           "He’s walked past the post office, and he’s gone into the building next door to it.",
           "It’s directly opposite the bus stop. I can’t read the sign from here. Over."
+        ],
+        "audio": [
+          "tail_01.mp3",
+          "tail_02.mp3",
+          "tail_03.mp3",
+          "tail_04.mp3",
+          "tail_05.mp3",
+          "tail_06.mp3",
+          "tail_07.mp3",
+          "tail_08.mp3",
+          "tail_09.mp3"
         ],
         "hintLines": [
           6,
@@ -687,6 +722,13 @@
             "The building he went into is straight in front of me, on the other side of the road.",
             "It’s on the corner where Canal Road meets Bell Lane, on the same side of the lane as the post office.",
             "It is not on King’s Lane, and it is not behind me. Hurry up. Over."
+          ],
+          "audio": [
+            "tail_retry_01.mp3",
+            "tail_retry_02.mp3",
+            "tail_retry_03.mp3",
+            "tail_retry_04.mp3",
+            "tail_retry_05.mp3"
           ],
           "hintLines": [
             2,

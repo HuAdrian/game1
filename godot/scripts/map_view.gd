@@ -106,9 +106,9 @@ func _draw() -> void:
 	if map.is_empty():
 		return
 	var k := _scale()
-	draw_rect(Rect2(Vector2.ZERO, Vector2(map.w, map.h) * k), Color("ece3cc"))
+	draw_rect(Rect2(Vector2.ZERO, Vector2(map.w, map.h) * k), Color("efe2c2"))
 	for r in map.roads:
-		draw_rect(Rect2(Vector2(r.x, r.y) * k, Vector2(r.w, r.h) * k), Color("fdfbf5"))
+		draw_rect(Rect2(Vector2(r.x, r.y) * k, Vector2(r.w, r.h) * k), Color("faf3e1"))
 	for l in map.labels:
 		var pos := Vector2(l.x, l.y) * k
 		if l.has("rot"):
@@ -134,10 +134,10 @@ func _draw() -> void:
 				draw_line(rect.position, rect.end, Color(UI.RED, 0.6), 2.0, true)
 		else:
 			var kind: String = b.get("kind", "")
-			var fill := Color("e3d6b6")
+			var fill := Color("e2cf9f")
 			var ink := UI.INK
 			if kind == "park":
-				fill = Color("dfe8cf")
+				fill = Color("cfd6b8")
 			elif kind == "start":
 				fill = UI.INK
 				ink = UI.PAPER
@@ -157,7 +157,7 @@ func _draw() -> void:
 	if map.has("nodes"):
 		for nd in map.nodes:
 			var q := Vector2(nd[0], nd[1]) * k
-			draw_circle(q, 4.0 * k, Color("fdfbf5"))
+			draw_circle(q, 4.0 * k, Color("faf3e1"))
 			draw_arc(q, 4.0 * k, 0, TAU, 16, UI.SOFT, 1.4, true)
 		if path.size() > 1:
 			var pts := PackedVector2Array()
