@@ -240,6 +240,8 @@
     $('bar-scene').textContent = sc.title;
     $('clock-time').textContent = clockText(now);
     $('clock-sub').textContent = now > dead ? 'past ' + c.clock.deadlineName + '!' : c.clock.deadlineName + ' ' + clockText(dead).replace(' pm', '');
+    $('hand-m').style.transform = 'rotate(' + now * 6 + 'deg)';
+    $('hand-h').style.transform = 'rotate(' + now / 2 + 'deg)';
     $('clock').classList.toggle('late', now > dead);
     $('clock').classList.toggle('tight', now > toMin(c.clock.comfortable) && now <= dead);
     var pips = $('hint-pips'); pips.textContent = '';
@@ -250,7 +252,9 @@
 
   function toast(text, cls) {
     var t = h('div', { class: 'toast ' + (cls || '') }, text);
-    $('toasts').appendChild(t);
+    var box = $('toasts');
+    while (box.children.length >= 2) box.firstChild.remove(); // never bury the page in messages
+    box.appendChild(t);
     setTimeout(function () { t.classList.add('out'); }, 2300);
     setTimeout(function () { t.remove(); }, 2800);
   }
@@ -264,8 +268,8 @@
       ['note', 'ev'].forEach(function (k) {
         var a = queued[k]; queued[k] = [];
         if (!a.length) return;
-        if (k === 'note') toast(a.length === 1 ? 'Saved to notebook: ' + a[0] : a.length + ' new entries in your notebook', 'note');
-        else toast(a.length === 1 ? 'New evidence: ' + a[0] : a.length + ' new evidence cards', 'ev');
+        if (k === 'note') { toast(a.length === 1 ? 'Saved to notebook: ' + a[0] : a.length + ' new entries in your notebook', 'note'); CF.Sound.play('pen'); }
+        else { toast(a.length === 1 ? 'Pinned to the board: ' + a[0] : a.length + ' cards pinned to the board', 'ev'); CF.Sound.play('pin'); }
       });
     }, 80);
   }
@@ -284,26 +288,32 @@
   function openNotebook(tab) {
     var body = h('div', { class: 'nb-body' });
     var tabs = [];
-    if (run) tabs.push({ id: 'case', label: 'Case notes' });
-    tabs.push({ id: 'words', label: 'Word bank' });
+    if (run) { tabs.push({ id: 'case', label: 'Notes' }); tabs.push({ id: 'board', label: 'Board' }); }
+    tabs.push({ id: 'words', label: 'Words' });
     var tabBar = h('div', { class: 'nb-tabs' });
     function show(id) {
       [].forEach.call(tabBar.children, function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === id); });
-      body.textContent = '';
+      body.textContent = ''; body.className = 'nb-body nb-' + id;
+      CF.Sound.play('paper');
       if (id === 'words') { build(body, {}, [wordBankView()]); return; }
       var s = run.s, c = run.c;
-      if (!s.facts.length) body.appendChild(h('p', { class: 'nb-empty' }, 'No notes yet. Facts and evidence appear here as you find them.'));
+      if (id === 'board') {
+        // The cork board: every evidence card found so far, pinned up.
+        var held = c.evidence.filter(function (e) { return s.evidence.indexOf(e.id) >= 0; });
+        if (!held.length) body.appendChild(h('p', { class: 'nb-empty' }, 'The board is empty. Evidence is pinned here as you find it.'));
+        held.forEach(function (e, i) {
+          body.appendChild(h('div', { class: 'cork-card tilt' + (i % 3) }, h('i', { class: 'pin' }), h('b', {}, e.title), h('p', {}, e.text)));
+        });
+        return;
+      }
+      if (!s.facts.length) body.appendChild(h('p', { class: 'nb-empty' }, 'No notes yet. Facts appear here as you find them.'));
       s.facts.forEach(function (f) {
         body.appendChild(h('div', { class: 'nb-fact' }, h('h4', {}, f.title), h('p', {}, f.text)));
       });
-      var held = c.evidence.filter(function (e) { return s.evidence.indexOf(e.id) >= 0; });
-      if (held.length) {
-        body.appendChild(h('h3', { class: 'nb-h' }, 'Evidence cards'));
-        held.forEach(function (e) { body.appendChild(h('div', { class: 'nb-ev' }, h('b', {}, e.title), ' ', e.text)); });
-      }
     }
     tabs.forEach(function (t) { tabBar.appendChild(h('button', { class: 'nb-tab', 'data-tab': t.id, onclick: function () { show(t.id); } }, t.label)); });
     var close = openSheet([
+      h('div', { class: 'nb-rings', 'aria-hidden': 'true' }),
       h('div', { class: 'nb-head' }, h('h2', {}, 'Notebook'), h('button', { class: 'nb-close', 'aria-label': 'Close notebook', onclick: function () { close(); } }, '×')),
       tabBar, body,
       run ? h('button', { class: 'btn ghost small nb-leave', onclick: function () { save(); Speech.stop(); location.reload(); } }, 'Leave case (progress is saved)') : null
@@ -326,14 +336,20 @@
     if (!lines.length) return Promise.resolve();
     var dlg = $('dialogue'), cast = (run && run.c.cast) || {};
     return new Promise(function (resolve) {
-      var i = 0, shownAt = 0;
+      var i = 0, shownAt = 0, prev = null;
       function show() {
         var l = lines[i], who = cast[l.who] || { name: l.who, initials: '?', tone: 'grey', role: '' };
+        var mood = (run && run.moods[l.who]) || 'neutral';
         dlg.textContent = '';
-        dlg.appendChild(h('div', { class: 'dlg-box tone-' + who.tone + (l.who === 'sam' ? ' is-sam' : '') },
-          h('div', { class: 'dlg-who' }, h('span', { class: 'avatar' }, who.initials), h('b', {}, who.name), h('small', {}, who.role)),
-          h('p', { class: 'dlg-text', html: rich(fmt(l.text, vars)) }),
-          h('span', { class: 'dlg-next' }, i < lines.length - 1 ? 'tap to continue ▸' : 'tap ▸')));
+        dlg.appendChild(h('div', { class: 'dlg-wrap' },
+          CF.art.hasPortrait(l.who) ? h('div', { class: 'dlg-portrait tone-' + who.tone + (l.who !== prev ? ' enter' : ' talk'), html: CF.art.portrait(l.who, mood) }) : null,
+          h('div', { class: 'dlg-box tone-' + who.tone + (l.who === 'sam' ? ' is-sam' : '') },
+            h('div', { class: 'dlg-who' }, h('b', {}, who.name), h('small', {}, who.role)),
+            h('p', { class: 'dlg-text', html: rich(fmt(l.text, vars)) }),
+            h('span', { class: 'dlg-next' }, i < lines.length - 1 ? 'tap to continue ▸' : 'tap ▸'))));
+        prev = l.who;
+        if (l.who === 'sam' && run) delete run.moods.sam; // Sam's reaction shows once
+        CF.Sound.play('blip');
         shownAt = Date.now();
       }
       dlg.onclick = function () {
@@ -357,8 +373,27 @@
     setStage: function () {
       var st = $('stage'); st.textContent = ''; st.scrollTop = 0;
       build(st, {}, [].slice.call(arguments));
+      if (st.childNodes.length) {
+        $('app').classList.remove('place-full');
+        if (st.querySelector('.paper')) CF.Sound.play('paper');
+      }
       return st;
     },
+    /** Where the scene happens: an illustrated backdrop and the surface documents lie on. */
+    setPlace: function (id, surface) {
+      var app = $('app'), art = $('place-art');
+      id = id || 'unit9';
+      if (art.getAttribute('data-place') !== id) { art.setAttribute('data-place', id); art.innerHTML = CF.art.place(id); }
+      app.className = app.className.replace(/\s*surface-\w+/g, '') + ' surface-' + (surface || 'wood');
+    },
+    /** An object standing in the scene: the tape recorder, the radio, the suspect. */
+    setProp: function (node) {
+      var p = $('prop'); p.textContent = '';
+      if (node) p.appendChild(node);
+      $('app').classList.toggle('has-prop', !!node);
+    },
+    /** Changes how a cast member looks the next time they are drawn. */
+    mood: function (who, mood) { if (mood) run.moods[who] = mood; else delete run.moods[who]; },
     setTray: function () {
       var tr = $('tray'); tr.textContent = '';
       build(tr, {}, [].slice.call(arguments));
@@ -374,14 +409,32 @@
       });
     },
 
+    /** Scene change: a case folder slides over the desk, then opens on the new place. */
     titleCard: function (sc) {
-      var idx = run.c.scenes.indexOf(sc);
+      var self = this, idx = run.c.scenes.indexOf(sc), wipe = $('wipe');
       this.setHint(null); this.setTray();
-      this.setStage(h('div', { class: 'title-card' },
-        h('span', { class: 'tc-num' }, 'Scene ' + (idx + 1) + ' of ' + run.c.scenes.length),
+      wipe.textContent = '';
+      wipe.appendChild(h('div', { class: 'wipe-folder' },
+        h('span', { class: 'wipe-tab' }, 'Scene ' + (idx + 1) + ' of ' + run.c.scenes.length),
         h('h1', {}, sc.title),
-        h('span', { class: 'tc-skill' }, sc.skill || ''),
-        sc.blurb ? h('p', {}, sc.blurb) : null));
+        h('p', { class: 'wipe-skill' }, sc.skill || ''),
+        sc.blurb ? h('p', { class: 'wipe-blurb' }, sc.blurb) : null,
+        h('span', { class: 'wipe-tap' }, 'tap to open')));
+      wipe.className = 'in'; wipe.hidden = false;
+      CF.Sound.play('wipe');
+      return wait(340).then(function () {
+        self.setStage(); self.setProp(null);
+        self.setPlace(sc.place, sc.surface);
+        $('app').classList.add('place-full');
+        return new Promise(function (resolve) {
+          var t = setTimeout(go, 1800);
+          function go() { clearTimeout(t); wipe.onclick = null; resolve(); }
+          wipe.onclick = go;
+        });
+      }).then(function () {
+        wipe.className = 'out'; CF.Sound.play('open');
+        return wait(330);
+      }).then(function () { wipe.hidden = true; wipe.className = ''; });
     },
 
     /** The case clock: the only pressure in the game. */
@@ -391,7 +444,8 @@
       run.s.lost += mins; save(); updateBar();
       var clock = $('clock'); clock.classList.remove('hit'); void clock.offsetWidth; clock.classList.add('hit');
       toast('+' + mins + ' min on the case clock', 'bad');
-      if (navigator.vibrate) { try { navigator.vibrate(60); } catch (e) {} }
+      CF.fx.feedback('wrong'); CF.Sound.play('clock');
+      run.moods.sam = 'annoyed';
       var dead = toMin(c.clock.deadline);
       if (before <= dead && this.now > dead) toast('Past ' + c.clock.deadlineName + ' time. Keep going!', 'bad');
     },
@@ -425,12 +479,14 @@
     /** Scenes hand the engine a function that gives a hint for the current step. */
     setHint: function (fn, whyNot) { run.hint = fn || null; run.hintWhy = whyNot || ''; },
 
+    /** A rubber stamp. Red stamps are the big moments: slam, thud, shake, ink flecks. */
     stamp: function (text, tone) {
-      var layer = $('stamp-layer');
-      var el = h('div', { class: 'stamp big ' + (tone || 'red') }, text);
+      var layer = $('stamp-layer'), big = !tone || tone === 'red';
+      var el = h('div', { class: 'stamp big ' + (tone || 'red') + (big ? ' heavy' : '') }, h('span', {}, text));
       layer.appendChild(el);
-      if (navigator.vibrate) { try { navigator.vibrate([30, 40, 80]); } catch (e) {} }
-      return wait(1250).then(function () { el.classList.add('out'); return wait(300); }).then(function () { el.remove(); });
+      run.moods.sam = 'pleased';
+      setTimeout(function () { CF.fx.feedback(big ? 'large' : 'medium'); CF.fx.splat(el); }, big ? 210 : 150);
+      return wait(1300).then(function () { el.classList.add('out'); return wait(300); }).then(function () { el.remove(); });
     },
 
     /**
@@ -483,7 +539,7 @@
   /* ───────────── runner ───────────── */
 
   async function runCase(c, state) {
-    run = { c: c, s: state, hint: null };
+    run = { c: c, s: state, hint: null, moods: {} };
     document.body.classList.add('in-case');
     updateBar();
     while (state.scene < c.scenes.length) {
@@ -502,6 +558,13 @@
   function home() {
     run = null; updateBar();
     document.body.classList.remove('in-case');
+    $('app').classList.remove('place-full');
+    function toggle(label, get, set) {
+      var b = h('button', { class: 'btn ghost small' });
+      function draw() { b.textContent = label + ': ' + (get() ? 'on' : 'off'); }
+      b.onclick = function () { set(!get()); draw(); CF.Sound.unlock(); CF.Sound.play('good'); };
+      draw(); return b;
+    }
     var stage = ctx.setStage(
       h('div', { class: 'home' },
         h('div', { class: 'home-head' },
@@ -522,6 +585,9 @@
         h('div', { class: 'home-tools' },
           h('button', { class: 'btn ghost', onclick: soundCheck }, 'Sound check'),
           h('button', { class: 'btn ghost', onclick: function () { openNotebook('words'); } }, 'My word bank')),
+        h('div', { class: 'home-tools' },
+          toggle('Sound effects', function () { return CF.Sound.on; }, function (v) { CF.Sound.setOn(v); }),
+          toggle('Screen shake', function () { return CF.fx.shakeOn; }, function (v) { CF.fx.setShake(v); })),
         h('p', { class: 'home-note' }, 'Calls and radio messages are spoken aloud. Turn your sound on, or use headphones.')));
     ctx.setTray();
     return stage;
@@ -543,8 +609,12 @@
 
   CF.boot = function () {
     Speech.init();
+    document.addEventListener('pointerdown', function (e) {
+      CF.Sound.unlock();
+      if (e.target.closest && e.target.closest('button, [role=button]')) CF.Sound.play('tick');
+    }, true);
     $('btn-hint').onclick = askHint;
-    $('btn-notebook').onclick = function () { openNotebook(); };
+    $('btn-notebook').onclick = function () { CF.Sound.play('open'); openNotebook(); };
     $('clock').onclick = function () {
       if (!run) return;
       toast('The clock only moves when you make a mistake or take a hint. ' + run.s.lost + ' min lost so far.');

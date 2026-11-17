@@ -40,7 +40,7 @@ CaseFiles.registerCase({
   scenes: [
     /* ───────────────────────── 1 · BRIEFING ───────────────────────── */
     {
-      id: 'briefing', type: 'story', title: 'Briefing', skill: 'Unit 9, Language Crimes',
+      id: 'briefing', place: 'unit9', type: 'story', title: 'Briefing', skill: 'Unit 9, Language Crimes',
       blurb: 'A basement office. One desk, two chairs, one tin of biscuits.',
       beats: [
         'Ah. The new trainee. I’m Sam. Welcome to Unit 9.',
@@ -69,7 +69,7 @@ CaseFiles.registerCase({
 
     /* ───────────────────────── 2 · WIRETAP ───────────────────────── */
     {
-      id: 'wiretap', type: 'wiretap', title: 'The Wiretap', skill: 'Listening · Part 1',
+      id: 'wiretap', place: 'unit9', type: 'wiretap', title: 'The Wiretap', skill: 'Listening · Part 1',
       blurb: 'One voicemail. One chance to hear it.',
       intro: [
         'Here’s how a wiretap works in this unit. I press play. You write. The tape plays *once*, because the machine is older than I am.',
@@ -154,7 +154,7 @@ CaseFiles.registerCase({
 
     /* ───────────────────────── 3 · TAIL ───────────────────────── */
     {
-      id: 'tail', type: 'tail', title: 'The Tail', skill: 'Listening · Part 2',
+      id: 'tail', place: 'street', surface: 'stone', type: 'tail', title: 'The Tail', skill: 'Listening · Part 2',
       blurb: 'Follow the voice. Find the door.',
       intro: [
         'Nair is following him on foot and talking to us by radio. You’ve got the street map.',
@@ -178,6 +178,10 @@ CaseFiles.registerCase({
       answer: 'B',
       map: {
         w: 360, h: 470,
+        // Corners the player can walk the marker between; `start` is the hall's main entrance.
+        nodes: [[309, 360], [250, 360], [120, 360], [20, 360], [340, 360], [120, 220], [250, 220], [20, 220], [340, 220],
+                [120, 80], [250, 80], [20, 80], [340, 80], [250, 14], [120, 456], [250, 456]],
+        start: 0,
         roads: [
           { x: 0, y: 66, w: 360, h: 28 }, { x: 0, y: 206, w: 360, h: 28 }, { x: 0, y: 346, w: 360, h: 28 },
           { x: 106, y: 80, w: 28, h: 390 }, { x: 236, y: 0, w: 28, h: 470 }
@@ -256,7 +260,7 @@ CaseFiles.registerCase({
 
     /* ───────────────────────── 4 · INTERROGATION ───────────────────────── */
     {
-      id: 'interrogation', type: 'interrogation', title: 'The Interrogation', skill: 'Reading · True / False / Not Given',
+      id: 'interrogation', place: 'office', type: 'interrogation', title: 'The Interrogation', skill: 'Reading · True / False / Not Given',
       blurb: 'He talks. The schedule doesn’t lie.',
       intro: [
         'Victor says he’s “delighted to help”. His words.',
@@ -369,7 +373,7 @@ CaseFiles.registerCase({
 
     /* ───────────────────────── 5 · EVIDENCE BOARD ───────────────────────── */
     {
-      id: 'board', type: 'chart', title: 'The Evidence Board', skill: 'Writing · Task 1 skills',
+      id: 'board', place: 'office', surface: 'cork', type: 'chart', title: 'The Evidence Board', skill: 'Writing · Task 1 skills',
       blurb: 'A chart, a report, and one sentence that doesn’t fit.',
       intro: [
         'Two things for the board. The box office’s own chart of ticket sales, and the report Victor wrote about it for Beatrice.',
@@ -430,7 +434,7 @@ CaseFiles.registerCase({
 
     /* ───────────────────────── 6 · FORGERY LAB ───────────────────────── */
     {
-      id: 'forgery', type: 'forgery', title: 'The Forgery Lab', skill: 'Writing · Grammar',
+      id: 'forgery', place: 'lab', surface: 'steel', type: 'forgery', title: 'The Forgery Lab', skill: 'Writing · Grammar',
       blurb: 'She never makes mistakes. So who made these?',
       intro: [
         'The lab has finished with the letter from her dressing table. No fingerprints. So we read it instead.',
@@ -498,7 +502,7 @@ CaseFiles.registerCase({
 
     /* ───────────────────────── 7 · TORN NOTE ───────────────────────── */
     {
-      id: 'note', type: 'torn', title: 'The Torn Note', skill: 'Writing · Linking words',
+      id: 'note', place: 'stagedoor', surface: 'stone', type: 'torn', title: 'The Torn Note', skill: 'Writing · Linking words',
       blurb: 'Six pieces. Six small words missing.',
       intro: [
         'A cleaner found this in the bin by the stage door, under a banana skin. Somebody tore it up in a hurry.',
@@ -558,7 +562,7 @@ CaseFiles.registerCase({
 
     /* ───────────────────────── 8 · ACCUSATION ───────────────────────── */
     {
-      id: 'accusation', type: 'accusation', title: 'The Accusation', skill: 'One name. Three proofs.',
+      id: 'accusation', place: 'hall', surface: 'cork', type: 'accusation', title: 'The Accusation', skill: 'One name. Three proofs.',
       blurb: 'Mira is on her way back. Somebody is going to a cell.',
       intro: [
         'Three names. Pick one.',
@@ -639,7 +643,7 @@ CaseFiles.registerCase({
 
     /* ───────────────────────── 9 · CASE REPORT ───────────────────────── */
     {
-      id: 'report', type: 'report', title: 'Case Report', skill: 'Your results',
+      id: 'report', place: 'unit9', type: 'report', title: 'Case Report', skill: 'Your results',
       endingNames: { C: 'Conviction', W: 'Walked free', R: 'Case reopened' },
       skills: [
         { key: 'L', name: 'Listening', from: 'the wiretap and the tail' },

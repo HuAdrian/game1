@@ -74,7 +74,7 @@
           h('p', { class: 'transcript-note' }, 'This device has no speech voice, so here is the transcript instead. Read it once, then put it away.'),
           lines.map(function (l) { return h('p', {}, l); }),
           h('button', { class: 'btn', onclick: function () { box.remove(); resolve(); } }, 'I’ve read it. Put it away'));
-        tape.el.after(box);
+        var stage = document.getElementById('stage'); stage.insertBefore(box, stage.firstChild); stage.scrollTop = 0;
       });
     }
     tape.progress(lines.length - 1, lines.length);
@@ -94,7 +94,7 @@
   /* ═════════════ story ═════════════ */
 
   CF.registerScene('story', async function (sc, ctx) {
-    ctx.titleCard(sc);
+    await ctx.titleCard(sc);
     await ctx.play(sc.beats);
   });
 
@@ -111,7 +111,8 @@
   }
 
   CF.registerScene('wiretap', async function (sc, ctx) {
-    ctx.titleCard(sc);
+    await ctx.titleCard(sc);
+    CF.Sound.play('ring');
     await ctx.play(sc.intro);
     var cast = ctx.case.cast, fields = sc.form.fields, values = {}, right = {};
 
@@ -129,7 +130,7 @@
           var input = h('input', {
             type: 'text', id: 'f-' + f.id, value: isOpen ? '' : values[f.id] || '', disabled: !isOpen,
             autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', enterkeyhint: 'next',
-            'aria-label': f.label, onfocus: function () { lastFocus = f.id; }
+            'aria-label': f.label, onfocus: function () { lastFocus = f.id; }, oninput: function () { CF.Sound.play('key'); }
           });
           inputs[f.id] = input;
           return h('div', { class: 'field' + (isOpen ? '' : ' locked'), id: 'row-' + f.id },
@@ -141,7 +142,9 @@
         if (played) return;
         played = true; ctx.flag(playedKey, true);
         playBtn.disabled = true; playBtn.textContent = 'Listening…';
+        CF.Sound.play('clunk');
         await playTape(ctx, tape, script, who.voice);
+        CF.Sound.play('clunk');
         playBtn.textContent = 'Played'; submit.disabled = false; armHint();
       });
       playBtn.disabled = played;
@@ -150,7 +153,8 @@
       if (played) tape.status('Tape finished');
 
       tape.el.appendChild(playBtn);
-      ctx.setStage(tape.el, page);
+      ctx.setProp(tape.el);
+      ctx.setStage(page);
       ctx.setTray(submit);
 
       function armHint() {
@@ -179,6 +183,7 @@
             row.querySelector('.mark').textContent = right[id] ? '✓' : '✗';
             if (!right[id]) wrong.push(f);
           });
+          CF.Sound.play(wrong.length ? 'pen' : 'good');
           await wait(900);
           resolve(wrong);
         };
@@ -253,11 +258,39 @@
       }
       root.appendChild(g);
     });
-    return { el: root, nodes: nodes };
+    // A walker the player moves from junction to junction, leaving a trail, the way
+    // a candidate traces the route with a pencil. It never moves by itself.
+    var reset = function () {};
+    if (m.nodes) {
+      var pos, path, trail = svg('polyline', { class: 'map-trail' });
+      var walker = svg('g', { class: 'map-walker' }, svg('circle', { class: 'ring', r: 10 }), svg('circle', { class: 'core', r: 5.5 }));
+      var draw = function () {
+        walker.style.transform = 'translate(' + pos[0] + 'px,' + pos[1] + 'px)';
+        trail.setAttribute('points', path.map(function (q) { return q.join(','); }).join(' '));
+      };
+      reset = function () { pos = m.nodes[m.start]; path = [pos]; draw(); };
+      root.appendChild(trail);
+      m.nodes.forEach(function (nd) {
+        var g = svg('g', { class: 'map-node', role: 'button', 'aria-label': 'Walk to this corner' },
+          svg('circle', { class: 'hit', cx: nd[0], cy: nd[1], r: 15 }), svg('circle', { class: 'dot', cx: nd[0], cy: nd[1], r: 3.4 }));
+        g.addEventListener('click', function () {
+          if (nd === pos) return;
+          if (nd[0] !== pos[0] && nd[1] !== pos[1]) { // not along one street
+            g.classList.add('no'); setTimeout(function () { g.classList.remove('no'); }, 350);
+            return;
+          }
+          pos = nd; path.push(nd); draw(); CF.Sound.play('step');
+        });
+        root.appendChild(g);
+      });
+      root.appendChild(walker);
+      reset();
+    }
+    return { el: root, nodes: nodes, reset: reset };
   }
 
   CF.registerScene('tail', async function (sc, ctx) {
-    ctx.titleCard(sc);
+    await ctx.titleCard(sc);
     await ctx.play(sc.intro);
     var who = ctx.case.cast[sc.speaker], tried = [];
 
@@ -268,6 +301,7 @@
         if (tried.indexOf(b.id) >= 0) return;
         picked = b;
         Object.keys(map.nodes).forEach(function (id) { map.nodes[id].classList.toggle('sel', id === b.id); });
+        CF.Sound.play('pin');
         go.textContent = 'Send the team to building ' + b.id;
         go.disabled = !played;
       });
@@ -276,7 +310,9 @@
         if (played) return;
         played = true; ctx.flag(playedKey, true);
         playBtn.disabled = true; playBtn.textContent = 'Listening…';
+        CF.Sound.play('static');
         await playTape(ctx, tape, script, who.voice);
+        CF.Sound.play('static');
         playBtn.textContent = 'Played'; armHint();
         if (picked) go.disabled = false;
       });
@@ -285,7 +321,10 @@
       var go = ctx.button('Tap a building on the map', 'primary');
       go.disabled = true;
       tape.el.appendChild(playBtn);
-      ctx.setStage(tape.el, h('div', { class: 'paper map-paper' }, map.el));
+      ctx.setProp(tape.el);
+      ctx.setStage(h('div', { class: 'paper map-paper' }, map.el,
+        sc.map.nodes ? h('div', { class: 'map-help' }, h('span', {}, 'Tap the corners to walk the marker along his route.'),
+          ctx.button('Back to the hall', 'ghost small', function () { map.reset(); })) : null));
       ctx.setTray(go);
       function armHint() {
         ctx.setHint(async function () {
@@ -323,7 +362,7 @@
   var VERDICT_NAME = { T: 'TRUE', F: 'LIE', NG: 'NOT GIVEN' };
 
   CF.registerScene('interrogation', async function (sc, ctx) {
-    ctx.titleCard(sc);
+    await ctx.titleCard(sc);
     await ctx.play(sc.intro);
     var suspect = ctx.case.cast[sc.suspect], cost = ctx.case.mistakeCost;
     var pressure = 0, lineEls = {}, sectionEls = {};
@@ -332,7 +371,18 @@
     for (var i = 0; i < sc.need; i++) meter.appendChild(h('i'));
     var chips = h('div', { class: 'chips' }, sc.statements.map(function () { return h('i'); }));
     var quote = h('div', { class: 'quote' });
-    var top = h('div', { class: 'interro-top' }, h('div', { class: 'interro-meta' }, meter, chips), quote);
+    var top = h('div', { class: 'interro-top' }, quote);
+    var face = h('div', { class: 'interro-face' });
+    var LEVELS = ['Calm', 'Nervous', 'Sweating', 'Cracking'], FACES = ['neutral', 'nervous', 'sweating', 'cracked'];
+    /** Redraws the suspect across the desk; `jolt` makes him flinch or preen. */
+    function setFace(mood, jolt) {
+      face.innerHTML = CF.art.portrait(sc.suspect, mood);
+      ctx.mood(sc.suspect, mood);
+      face.className = 'interro-face'; void face.offsetWidth;
+      if (jolt) face.classList.add(jolt);
+    }
+    setFace('neutral');
+    ctx.setProp(h('div', { class: 'interro-band' }, face, h('div', { class: 'interro-meta' }, meter, chips)));
 
     var doc = h('div', { class: 'paper schedule' },
       h('div', { class: 'sch-head' }, h('b', {}, sc.doc.head), h('span', {}, sc.doc.title), h('span', {}, sc.doc.date)),
@@ -357,6 +407,8 @@
     function setPressure() {
       [].forEach.call(meter.querySelectorAll('i'), function (el, i) { el.classList.toggle('on', i < pressure); });
       meter.classList.toggle('full', pressure >= sc.need);
+      meter.firstChild.textContent = 'Pressure: ' + LEVELS[Math.min(pressure, LEVELS.length - 1)];
+      meter.classList.remove('bump'); void meter.offsetWidth; meter.classList.add('bump');
     }
 
     /** Verdict first; for True or Lie the player must then tap the proving line. */
@@ -410,10 +462,13 @@
           if (st.verdict === 'F') {
             lineEls[ans.line].classList.add('proved');
             lineEls[ans.line].querySelector('.line-tag').textContent = 'proves lie ' + (n + 1);
+            CF.fx.pen(lineEls[ans.line].querySelector('.line-text'), 'underline', 'red');
             pressure++; setPressure();
+            setTimeout(function () { setFace(FACES[Math.min(pressure, FACES.length - 1)], 'flinch'); }, 210);
             await ctx.stamp('CONTRADICTION', 'red');
           } else if (st.verdict === 'T') {
             lineEls[ans.line].classList.add('confirmed');
+            CF.fx.pen(lineEls[ans.line], 'tick', 'blue');
             await ctx.stamp('CONFIRMED', 'ink');
           } else {
             await ctx.stamp('NOT GIVEN', 'grey');
@@ -422,9 +477,11 @@
           await ctx.say(st.right);
         } else {
           ctx.lose(cost);
+          setFace('smug', 'preen');
           var key = rightVerdict ? 'line' : ans.verdict + '>' + st.verdict;
           await ctx.say(sc.reactions[key]);
           if (attempt === 0) await ctx.say(sc.reactions.again);
+          setFace(FACES[Math.min(pressure, FACES.length - 1)]);
         }
       }
       if (!solved) {
@@ -437,9 +494,11 @@
       ctx.word(st.word);
     }
 
-    quote.textContent = '';
+    quote.textContent = ''; top.hidden = true;
     ctx.setTray();
+    if (pressure < sc.need) setFace('smug');
     await ctx.play(pressure >= sc.need ? sc.crack : sc.noCrack);
+    ctx.mood(sc.suspect, null);
     await ctx.play(sc.outro);
   });
 
@@ -471,7 +530,7 @@
     return new Promise(function (resolve) {
       var buttons = options.map(function (o) {
         var b = ctx.button(o.text, 'option', async function () {
-          if (o.correct) { ctx.setTray(); resolve(true); return; }
+          if (o.correct) { CF.Sound.play('good'); ctx.setTray(); resolve(true); return; }
           b.disabled = true; b.classList.add('struck');
           await onWrong(o);
         });
@@ -483,7 +542,7 @@
   }
 
   CF.registerScene('chart', async function (sc, ctx) {
-    ctx.titleCard(sc);
+    await ctx.titleCard(sc);
     await ctx.play(sc.intro);
     var cost = ctx.case.mistakeCost, chart = drawChart(sc.chart), els = {}, firstTry = true;
 
@@ -512,7 +571,8 @@
           if (s.false) { resolve(s); return; }
           firstTry = false;
           els[s.id].disabled = true; els[s.id].classList.add('checked');
-          els[s.id].querySelector('.s-tag').textContent = '✓ matches the chart';
+          els[s.id].querySelector('.s-tag').textContent = 'matches the chart';
+          CF.fx.pen(els[s.id], 'tick', 'blue');
           ctx.lose(cost);
           await ctx.say([s.wrong]);
         };
@@ -521,6 +581,7 @@
     ctx.mark('W', sc.id + '.find', firstTry);
     sc.sentences.forEach(function (s) { els[s.id].onclick = null; });
     els[target.id].classList.add('circled');
+    CF.fx.pen(els[target.id], 'circle', 'red');
     await ctx.stamp('FALSE', 'red');
     await ctx.say(sc.found);
 
@@ -533,6 +594,7 @@
     ctx.mark('W', sc.id + '.fix', fixFirst);
     var good = sc.rewrite.options.filter(function (o) { return o.correct; })[0];
     els[target.id].innerHTML = '<span class="s-text"><del>' + CF.rich(target.text) + '</del><ins>' + CF.rich(good.text) + '</ins></span>';
+    CF.fx.pen(els[target.id].querySelector('del'), 'strike', 'red');
     els[target.id].scrollIntoView({ block: 'center', behavior: 'smooth' });
     (sc.words || []).forEach(function (w) { ctx.word(w); });
     await wait(700);
@@ -542,7 +604,7 @@
   /* ═════════════ forgery: grammar ═════════════ */
 
   CF.registerScene('forgery', async function (sc, ctx) {
-    ctx.titleCard(sc);
+    await ctx.titleCard(sc);
     await ctx.play(sc.intro);
     var cost = ctx.case.mistakeCost, L = sc.letter, els = {}, paraEls = [], busy = false;
     var all = [].concat.apply([], L.paragraphs);
@@ -585,6 +647,7 @@
       if (!s.error) {
         falseAlarms++;
         els[s.id].classList.add('fine');
+        CF.fx.pen(els[s.id], 'underline', 'blue');
         ctx.lose(cost);
         await ctx.say([s.fine || sc.fineGeneric[0]]);
         busy = false; return;
@@ -599,6 +662,8 @@
         found.push(s.id);
         els[s.id].classList.add('caught');
         els[s.id].innerHTML = CF.rich(s.text).replace(CF.rich(s.error.bad), '<del>' + CF.rich(s.error.bad) + '</del><ins>' + CF.rich(s.error.good) + '</ins>');
+        CF.fx.pen(els[s.id].querySelector('del'), 'strike', 'red');
+        CF.fx.shake(0.15);
         ctx.word(s.error.word);
       }
       busy = false;
@@ -620,7 +685,7 @@
   /* ═════════════ torn note: linking words ═════════════ */
 
   CF.registerScene('torn', async function (sc, ctx) {
-    ctx.titleCard(sc);
+    await ctx.titleCard(sc);
     await ctx.play(sc.intro);
     var cost = ctx.case.mistakeCost, gaps = {}, strips = {}, solved = {}, missed = {}, struck = {}, current = null;
     function cap(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
@@ -672,6 +737,8 @@
       gaps[p.id].textContent = p.capital ? cap(o) : o;
       gaps[p.id].className = 'gap filled'; gaps[p.id].disabled = true;
       strips[p.id].classList.remove('loose'); strips[p.id].classList.add('mended');
+      strips[p.id].appendChild(h('i', { class: 'sticky-tape' }));
+      CF.Sound.play('tape'); CF.fx.shake(0.12);
       ctx.word(p.word);
       var next = sc.pieces.filter(function (x) { return !solved[x.id]; })[0];
       if (next) { select(next); strips[next.id].scrollIntoView({ block: 'center', behavior: 'smooth' }); }
@@ -689,20 +756,35 @@
   /* ═════════════ accusation ═════════════ */
 
   CF.registerScene('accusation', async function (sc, ctx) {
-    ctx.titleCard(sc);
+    await ctx.titleCard(sc);
     await ctx.play(sc.intro);
     var c = ctx.case, held = c.evidence, suspect = null, cards = [];
 
     var go = ctx.button('Choose a suspect and 3 cards', 'primary danger');
     go.disabled = true;
+    var strings = svg('svg', { class: 'strings', 'aria-hidden': 'true' }), board;
+    /** Red string from the chosen suspect to each chosen card. */
+    function drawStrings() {
+      strings.textContent = '';
+      if (!suspect || !board) return;
+      var box = board.getBoundingClientRect();
+      var from = susEls[sc.suspects.indexOf(suspect)].querySelector('.mug').getBoundingClientRect();
+      var x1 = from.left + from.width / 2 - box.left, y1 = from.bottom - box.top;
+      cards.forEach(function (e) {
+        var pin = cardEls[held.indexOf(e)].querySelector('.pin').getBoundingClientRect();
+        var x2 = pin.left + pin.width / 2 - box.left, y2 = pin.top + pin.height / 2 - box.top;
+        strings.appendChild(svg('path', { d: 'M' + x1 + ' ' + y1 + ' Q' + (x1 + x2) / 2 + ' ' + ((y1 + y2) / 2 + 26) + ' ' + x2 + ' ' + y2, pathLength: 1 }));
+      });
+    }
     function refresh() {
+      drawStrings();
       go.disabled = !(suspect && cards.length === 3);
       go.textContent = !suspect ? 'Choose a suspect' : cards.length < 3 ? 'Choose ' + (3 - cards.length) + ' more card' + (cards.length === 2 ? '' : 's') : 'Arrest ' + suspect.name;
     }
     var susEls = sc.suspects.map(function (s) {
       var el = h('button', { class: 'suspect', type: 'button', onclick: function () {
-        suspect = s; susEls.forEach(function (x) { x.classList.toggle('sel', x === el); }); refresh();
-      } }, h('span', { class: 'mug' }, s.initials), h('b', {}, s.name), h('small', {}, s.role), h('p', {}, s.line));
+        suspect = s; susEls.forEach(function (x) { x.classList.toggle('sel', x === el); }); CF.Sound.play('pin'); refresh();
+      } }, h('span', { class: 'mug', html: CF.art.hasPortrait(s.id) ? CF.art.portrait(s.id, 'neutral') : s.initials }), h('b', {}, s.name), h('small', {}, s.role), h('p', {}, s.line));
       return el;
     });
     var cardEls = held.map(function (e) {
@@ -711,14 +793,15 @@
         if (i >= 0) cards.splice(i, 1);
         else if (cards.length < 3) cards.push(e);
         else { ctx.toast('Three cards only. Tap one to put it back.'); return; }
-        el.classList.toggle('sel', cards.indexOf(e) >= 0); refresh();
+        el.classList.toggle('sel', cards.indexOf(e) >= 0); CF.Sound.play('pin'); refresh();
       } }, h('i', { class: 'pin' }), h('b', {}, e.title), h('p', {}, e.text));
       return el;
     });
-    ctx.setStage(h('div', { class: 'accuse' },
+    board = h('div', { class: 'accuse' },
       h('h2', {}, 'Who did it?'), h('div', { class: 'suspects' }, susEls),
       h('h2', {}, 'Which three cards prove it?'), h('p', { class: 'accuse-note' }, 'Choose what shows what the suspect did.'),
-      h('div', { class: 'ev-grid' }, cardEls)));
+      h('div', { class: 'ev-grid' }, cardEls), strings);
+    ctx.setStage(board);
     ctx.setTray(go);
     ctx.setHint(async function () { await ctx.say([sc.hint]); return true; });
 
@@ -748,7 +831,8 @@
 
   CF.registerScene('report', async function (sc, ctx) {
     var c = ctx.case, s = ctx.state, end = s.ending || { verdict: 'R' };
-    ctx.setHint(null); ctx.setTray();
+    ctx.setHint(null); ctx.setTray(); ctx.setProp(null);
+    ctx.setPlace(sc.place, sc.surface);
     var bands = {};
     sc.skills.forEach(function (k) { bands[k.key] = CF.bandFor(s.marks[k.key]); });
     var hintsUsed = c.hints - s.hintsLeft;
