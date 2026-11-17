@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#d8c39a">
   <title>Case Files</title>
   <meta name="description" content="An IELTS practice game disguised as detective work.">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
   <div id="app">
@@ -37,11 +37,12 @@
   </div>
   <noscript>Case Files needs JavaScript to run.</noscript>
 
-  <script src="js/engine.js"></script>
-  <script src="js/feel.js"></script>
-  <script src="js/scenes.js"></script>
-  <!-- Each case is one data file. Add new cases here. -->
-  <script src="cases/missing-violinist.js"></script>
+  <script src="js/engine.js?v=2"></script>
+  <script src="js/feel.js?v=2"></script>
+  <script src="js/scenes.js?v=2"></script>
+  <!-- Each case is one data file. Add new cases here.
+       Raise the ?v= number on every file when you publish a change, so phones do not keep old copies. -->
+  <script src="cases/missing-violinist.js?v=2"></script>
   <script>CaseFiles.boot();</script>
 </body>
 </html>
