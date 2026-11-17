@@ -56,6 +56,7 @@ godot/                       the Godot 4.6.1 project
   scripts/ui.gd              paper-and-ink interface builders
   scripts/clock_face.gd, pen_mark.gd, map_view.gd, chart_view.gd   custom-drawn pieces
   web/head_include.html      browser bridge: speech, typed-answer boxes, clipboard
+  addons/godot_mini_game/    Godot Mini Game export plugin (v0.3.1), with its bundled 4.6.1 engine
   assets/
     places/        one image per location (unit9, street, office, lab, stagedoor, hall)
     characters/    one image per person and mood, named <person>_<mood>.png
@@ -63,6 +64,9 @@ godot/                       the Godot 4.6.1 project
     audio/         sound effects (.wav)
     fonts/         Crimson Text, Courier Prime, Kalam (SIL Open Font License)
 tools/make_assets.js         regenerates the placeholder art and sounds
+tools/export_wechat.gd       exports the WeChat Mini Game package without opening the editor
+tools/playtest/baseline.js   fixed-answer playthrough of Case 01; prints the result code
+minigame/wechat/             the WeChat Mini Game package (open this folder in WeChat DevTools)
 legacy-html/                 the earlier HTML version
 ```
 
@@ -98,3 +102,14 @@ godot --headless --export-release Web ../index.html
 ```
 
 The preset has thread support switched off, because GitHub Pages cannot send the headers a threaded build needs. If you edit `web/head_include.html`, paste its contents into the "Head Include" field of the Web preset (or into `html/head_include` in `export_presets.cfg`) before exporting.
+
+## Building the WeChat Mini Game package
+
+The Godot Mini Game export plugin is installed and enabled. Export from its **Mini Game Export** dock (platform WeChat, App ID `wxd74107578cbd5867`, portrait, preset `Web`, output `minigame/wechat`), or without the editor:
+
+```
+cd godot
+godot --headless --path . --script ../tools/export_wechat.gd
+```
+
+The plugin's engine matches Godot 4.6.1 exactly; with any other editor version the export stops at its preflight check. Open `minigame/wechat` in WeChat DevTools.

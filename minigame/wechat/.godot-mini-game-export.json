@@ -1,0 +1,131 @@
+{
+	"generated_at": "2026-11-17T10:36:41",
+	"orientation": "portrait",
+	"output_artifacts": {
+		"adapter.js": {
+			"sha256": "d3c70699e4c781d2f292e9b9e1bf73bdac681260cf5ff7f81c25d4f1855d7cd5",
+			"size": 59161
+		},
+		"audio/demo-tone.wav": {
+			"sha256": "1970302811e29894d3bcabf73ea4995b37cc19fb447761ff22032ec77c1ed1da",
+			"size": 70604
+		},
+		"engine/game.js": {
+			"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"size": 0
+		},
+		"engine/godot.wasm.br": {
+			"sha256": "f81067a1d30125b161c26097bf4976c20064a1543d2c56b1c7cdcce10ae764cd",
+			"size": 6342168
+		},
+		"engine/godot.zip": {
+			"sha256": "b89a013ddba0aebf1516a54a0a3f0c5541ae81c188670a0933a0c9ec1ef49a15",
+			"size": 1901352
+		},
+		"fetch.js": {
+			"sha256": "8a87da0b0d8a437d3bf4c27c2adb6397be645fe486d4a478dd6ee49591cfaa24",
+			"size": 9386
+		},
+		"game.js": {
+			"sha256": "1509ce034542b3b86395c9189a3b71ec70088ba2298d97155d6f2c6071df4662",
+			"size": 1106
+		},
+		"game.json": {
+			"sha256": "73b1f9fb14bbccc2f99aad758a27916bad99d184da1e44c67ad6cffc7c1357f1",
+			"size": 304
+		},
+		"images/background.png": {
+			"sha256": "63185c695ede2e0348adb1cd7ec009e62d417c1a900fe16260ea74b186e76fcd",
+			"size": 408
+		},
+		"images/logo.png": {
+			"sha256": "cc881332ee52deb4f4e9ae13a523fc7df06a0c2fd31bbb17fafa5931f2ab72d6",
+			"size": 35761
+		},
+		"js/image_loader.js": {
+			"sha256": "47998c9432344f077854becac3828b7fa8b729f524ac547270ed17ddcf15168a",
+			"size": 228
+		},
+		"js/libs/godot.js": {
+			"sha256": "f63cf5c4e8683630c3a82faf7e56cfc0f56e7f61a846f4c017365e3f52212d7c",
+			"size": 285699
+		},
+		"js/libs/sdk.js": {
+			"sha256": "6c1919f9c68c425f38416cc710e49be566286f06b16d7cc7808626bbe572c086",
+			"size": 155545
+		},
+		"js/loader.js": {
+			"sha256": "9fd9dfe27039d0548f2634fbccefbf8a3f6285529393db67a41335bd00fcc074",
+			"size": 17372
+		},
+		"js/platform_runtime.js": {
+			"sha256": "2961552bc254dd5a173f02fc138cdb3fbad086a2dc64a7f384a294ab15e52b58",
+			"size": 8137
+		},
+		"js/worker/position_reporting.js": {
+			"sha256": "9da1e6d45b5bc795b5bb64fc89c392c1a2312c7d9c4be44e3917b5061984f60d",
+			"size": 1033
+		},
+		"project.config.json": {
+			"sha256": "a83964f4b8885fa4bb3548918bf4eac04b87c53d81b6457adb79a97311b34cb0",
+			"size": 526
+		},
+		"project.private.config.json": {
+			"sha256": "e80d73c40c0dbfbc81a028bfbb96fd8d6dc439e36f580173201d64bd925168b5",
+			"size": 131
+		},
+		"subpacks/game.js": {
+			"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"size": 0
+		}
+	},
+	"ownership": "managed-output",
+	"platform": "wechat",
+	"platform_contract": {
+		"api_namespace": "wx",
+		"runtime_type": "native",
+		"subpackage_field": "subpackages"
+	},
+	"required_files": [
+		"adapter.js",
+		"audio/demo-tone.wav",
+		"engine/game.js",
+		"engine/godot.wasm.br",
+		"engine/godot.zip",
+		"fetch.js",
+		"game.js",
+		"game.json",
+		"images/background.png",
+		"images/logo.png",
+		"js/image_loader.js",
+		"js/libs/godot.js",
+		"js/libs/sdk.js",
+		"js/loader.js",
+		"js/platform_runtime.js",
+		"js/worker/position_reporting.js",
+		"project.config.json",
+		"subpacks/game.js",
+		".godot-mini-game-export.json",
+		"project.private.config.json"
+	],
+	"schema_version": 1,
+	"template": {
+		"bridge_abi": 1,
+		"emscripten_version": "4.0.3",
+		"godot_commit": "14d19694e0c88a3f9e82d899a0400f27a24c176e",
+		"godot_version": "4.6.1.stable",
+		"profile": "2d_full",
+		"revision": 1,
+		"source": "bundled",
+		"source_artifacts": {
+			"godot.js": {
+				"sha256": "fd8265eed945d669189eb6960f9ebca40863a7d00e87c5d9bdd5868e55b1203b"
+			},
+			"godot.wasm.br": {
+				"sha256": "f81067a1d30125b161c26097bf4976c20064a1543d2c56b1c7cdcce10ae764cd"
+			}
+		},
+		"target": "release"
+	},
+	"tool": "godot_mini_game"
+}

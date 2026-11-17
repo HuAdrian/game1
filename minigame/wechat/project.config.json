@@ -1,0 +1,20 @@
+{
+  "description": "Case Files",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true,
+    "babelSetting": { "ignore": [], "disablePlugins": [], "outputPath": "" },
+    "swc": true,
+    "enhance": true
+  },
+  "compileType": "game",
+  "libVersion": "latest",
+  "appid": "wxd74107578cbd5867",
+  "projectname": "Case Files",
+  "condition": {},
+  "packOptions": { "ignore": [], "include": [] },
+  "editorSetting": { "tabIndent": "insertSpaces", "tabSize": 2 }
+}
