@@ -47,7 +47,7 @@ Three hints per case: Sam points to the right part of the document or replays pa
 
 ```
 index.*                      the Web export that GitHub Pages serves
-godot/                       the Godot 4.3 project
+godot/                       the Godot 4.6.1 project
   project.godot, main.tscn
   export_presets.cfg         Web preset (thread support off, so no special server headers are needed)
   cases/missing_violinist.json   Case 01, as data
@@ -90,7 +90,7 @@ Dialogue lines are strings. A plain string is Sam; `"@victor ..."` is spoken by 
 
 ## Building the Web export
 
-With Godot 4.3 and its export templates installed:
+With Godot 4.6.1 and its export templates installed:
 
 ```
 cd godot
