@@ -37,12 +37,13 @@ const MINI = !!process.env.MINI;
 // The fixed route: every main lead, plus one optional lead so every scene type is played.
 const ROUTE = process.env.ROUTE ? process.env.ROUTE.split(',') : ['wiretap', 'tail', 'interrogation', 'sales', 'forgery', 'note', 'frontdesk'];
 const lead = id => CASE.leads.find(l => l.id === id).scene;
+let PAGE = null;   // for a screenshot if the run fails
 
 (async () => {
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const ctx = await b.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true });
   await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new globalThis.URL(URL).origin });
-  const p = await ctx.newPage();
+  const p = await ctx.newPage(); PAGE = p;
   const errs = [];
   p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
   p.on('response', r => { if (r.status() >= 400) errs.push(r.status() + ' ' + new globalThis.URL(r.url()).pathname); });
@@ -76,8 +77,8 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
     for (let i = 0; i < max; i++) {
       await p.waitForTimeout(170);
       const t = await T();
-      if (t.wipe) { quiet = 0; await tapAt([0.3, 0.5, 0.1, 0.1]); await p.waitForTimeout(450); continue; }
-      if (t.dlg) { quiet = 0; await tapAt([0.3, 0.9, 0.1, 0.02]); continue; }
+      if (t.wipe) { quiet = 0; await tapAt([0.02, 0.01, 0.08, 0.03]); await p.waitForTimeout(450); continue; }
+      if (t.dlg) { quiet = 0; await tapAt([0.02, 0.01, 0.08, 0.03]); continue; }
       if (++quiet >= 6) return;
     }
     throw new Error('dialogue never ended');
@@ -220,4 +221,8 @@ const lead = id => CASE.leads.find(l => l.id === id).scene;
     console.log('AFTER RESTART', JSON.stringify({ words: r.words, wiped_user_storage: MINI }));
   }
   await b.close();
-})().catch(e => { console.error('FAILED', e.message.split('\n')[0]); process.exit(1); });
+})().catch(async e => {
+  console.error('FAILED', e.message.split('\n')[0]);
+  if (PAGE && SHOTS) await PAGE.screenshot({ path: path.join(SHOTS, 'failure.png') }).catch(() => {});
+  process.exit(1);
+});

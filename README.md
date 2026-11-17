@@ -18,6 +18,8 @@ python3 -m http.server 8000      # then open http://localhost:8000
 
 Calls and radio messages are spoken with the browser's built-in speech in a British voice. If a device has no voice, the game shows the transcript to read once instead. Typed answers use real text boxes laid over the game, so the phone's own keyboard opens.
 
+In the WeChat Mini Game there is no page and no speech engine: calls and radio messages play recorded clips (`assets/audio/voice`), typed answers open the WeChat keyboard through the plugin's `MiniGameSDK`, and a bundled Chinese font covers every glyph the game or a player can put on screen.
+
 The earlier HTML version is kept in `legacy-html/`.
 
 ## How a case plays
@@ -60,23 +62,29 @@ godot/                       the Godot 4.6.1 project
   assets/
     places/        one image per location (unit9, street, office, lab, stagedoor, hall)
     characters/    one image per person and mood, named <person>_<mood>.png
-    ui/            desk surfaces, folder, pin, tape, tape reel
+    ui/            desk surfaces, folder, pin, tape, tape reel, the emblem (boot splash, icon, loading logo)
     audio/         sound effects (.wav)
-    fonts/         Crimson Text, Courier Prime, Kalam (SIL Open Font License)
-tools/make_assets.js         regenerates the placeholder art and sounds
+    audio/voice/   the recorded listening clips (.mp3), one per script line
+    fonts/         Crimson Text, Courier Prime, Kalam, and a Noto Sans SC subset (GB2312) as fallback
+                   and project default (all SIL Open Font License)
+tools/make_assets.js         regenerates the art (ink and watercolour) and the sound effects
+tools/make_voice.py          renders the listening clips with ElevenLabs (the API key is never stored in a file)
+tools/check_voice.py         transcribes each clip and compares it with its script line
 tools/export_wechat.gd       exports the WeChat Mini Game package without opening the editor
-tools/playtest/baseline.js   fixed-answer playthrough of Case 01; prints the result code
+tools/playtest/baseline.js   fixed-answer playthrough of Case 01; prints the result code (MINI=1 for the mini game)
+tools/playtest/minigame/     runs the MiniGame build in a desktop browser with a stand-in wx and the plugin's real SDK
 minigame/wechat/             the WeChat Mini Game package (open this folder in WeChat DevTools)
 legacy-html/                 the earlier HTML version
 ```
 
-## Replacing the placeholder art
+## Replacing the art
 
-All artwork and sound is loaded by file name from `godot/assets`. To use finished art, save it over the placeholder with the same name and export again; no code changes.
+The art direction is ink and watercolour: deep ink blue, warm parchment and one red accent. All artwork and sound is loaded by file name from `godot/assets`. To use finished art, save it over the placeholder with the same name and export again; no code changes.
 
-- **Places:** `places/<id>.png`, landscape 4:3 (the placeholders are 960 x 720). The game crops to the middle band while a document is open, so keep the important things in the middle third.
-- **Characters:** `characters/<person>_<mood>.png`, a bust on a transparent background (placeholders are 400 x 480), feet of the bust at the bottom edge. Moods in use: `neutral`, `pleased`, `annoyed` for Sam; `neutral`, `smug`, `nervous`, `sweating`, `cracked` for Victor. If a mood file is missing the game uses `<person>_neutral.png`.
+- **Places:** `places/<id>.png`, landscape 4:3 (960 x 720). The game crops to the middle band while a document is open, so keep the important things in the middle third.
+- **Characters:** `characters/<person>_<mood>.png`, a bust on a transparent background (400 x 480), feet of the bust at the bottom edge. Every character needs at least `neutral`. Moods in use: `neutral`, `pleased`, `annoyed` for Sam; `neutral`, `smug`, `nervous`, `sweating`, `cracked` for Victor; `nervous`, `pleased`, `smug` for Dominic and Beatrice; `annoyed` for Nair. If a mood file is missing the game uses `<person>_neutral.png`.
 - **Sounds:** `audio/<name>.wav`.
+- **Listening clips:** `audio/voice/<name>.mp3`. The case JSON lists them in an `audio` array beside each `script` array: `audio[i]` is `script[i]` spoken, and hint replays rely on that alignment.
 
 ## Adding a case
 
@@ -105,11 +113,11 @@ The preset has thread support switched off, because GitHub Pages cannot send the
 
 ## Building the WeChat Mini Game package
 
-The Godot Mini Game export plugin is installed and enabled. Export from its **Mini Game Export** dock (platform WeChat, App ID `wxd74107578cbd5867`, portrait, preset `Web`, output `minigame/wechat`), or without the editor:
+The Godot Mini Game export plugin is installed and enabled. Export from its **Mini Game Export** dock (platform WeChat, App ID `wxd74107578cbd5867`, portrait, preset `MiniGame`, output `minigame/wechat`), or without the editor:
 
 ```
 cd godot
 godot --headless --path . --script ../tools/export_wechat.gd
 ```
 
-The plugin's engine matches Godot 4.6.1 exactly; with any other editor version the export stops at its preflight check. Open `minigame/wechat` in WeChat DevTools.
+The `MiniGame` preset keeps the recorded clips, which the `Web` preset (GitHub Pages) leaves out; both leave out the plugin's editor-only files. The plugin's engine matches Godot 4.6.1 exactly; with any other editor version the export stops at its preflight check. Open `minigame/wechat` in WeChat DevTools.

@@ -1,5 +1,5 @@
 {
-	"generated_at": "2026-11-17T10:36:41",
+	"generated_at": "2026-11-17T12:56:18",
 	"orientation": "portrait",
 	"output_artifacts": {
 		"adapter.js": {
@@ -19,8 +19,8 @@
 			"size": 6342168
 		},
 		"engine/godot.zip": {
-			"sha256": "b89a013ddba0aebf1516a54a0a3f0c5541ae81c188670a0933a0c9ec1ef49a15",
-			"size": 1901352
+			"sha256": "19786793943d200b4bb45ad6283759c314a1746f49753d7b663901531b45317a",
+			"size": 6993842
 		},
 		"fetch.js": {
 			"sha256": "8a87da0b0d8a437d3bf4c27c2adb6397be645fe486d4a478dd6ee49591cfaa24",
@@ -39,8 +39,8 @@
 			"size": 408
 		},
 		"images/logo.png": {
-			"sha256": "cc881332ee52deb4f4e9ae13a523fc7df06a0c2fd31bbb17fafa5931f2ab72d6",
-			"size": 35761
+			"sha256": "0212aba2f47e3984786400b7db3feef1264d4ad5a4f0f1272cec9f069a946514",
+			"size": 121491
 		},
 		"js/image_loader.js": {
 			"sha256": "47998c9432344f077854becac3828b7fa8b729f524ac547270ed17ddcf15168a",
