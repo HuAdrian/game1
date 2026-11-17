@@ -36,12 +36,23 @@ Calls and radio messages use the browser's built-in text-to-speech with a Britis
 - **Bands.** Estimated from the share of answers that were right first time. It is a rough guide from one short case, not an official score.
 - **Result code.** For example `MV01-BVJYAV`. It packs the ending, three bands, hints used and minutes lost; paste a friend's code into the report to compare.
 
+## Look, sound and touch
+
+- **Places.** Every scene has an illustrated backdrop (Unit 9's basement office, the street, the agent's office, the lab, the stage door, the concert hall). It fills the screen while people talk and shrinks to a band above the document while you work.
+- **People.** Sam and the cast are drawn as ink portraits that appear when they speak. Sam looks pleased or annoyed after your last action; the suspect in the interrogation gets visibly more nervous as lies are proven.
+- **The desk.** Scenes change with a case folder sliding over the desk. The notebook has a ruled Notes page, a cork Board with the evidence cards pinned up, and the Words page. The case clock has hands that sweep forward when time is lost.
+- **Feedback.** Stamps slam down with a thud, a screen shake and ink flecks. Paper, pen, pin, tape, phone and radio sounds are synthesised with Web Audio, so there are no audio files. Sound effects and screen shake can each be switched off on the home screen, and shake is off automatically when the device asks for reduced motion.
+- **Touch.** On the map you walk a marker from corner to corner and it leaves a trail. Sentences are underlined, circled, ticked or struck through as if with a pen. The accusation ties red string from the suspect to the chosen cards.
+
+None of this changes a task: the texts, answers, scoring and case logic are the same.
+
 ## Project layout
 
 ```
 index.html                  page shell; lists the case files to load
 css/style.css               the desk, paper, ink and red
 js/engine.js                clock, dialogue, hints, notebook, speech, saving, scoring, runner
+js/feel.js                  sounds, screen shake, pen marks, illustrated places, ink portraits
 js/scenes.js                scene types and document renderers
 cases/missing-violinist.js  Case 01, as data
 ```
@@ -75,6 +86,8 @@ Scene types (`type` on each scene):
 | `torn` | `pieces` (each with `before`, `after`, `options`, `answer`, `why`, `hint`, `word`) |
 | `accusation` | `suspects`, `culprit`, `endings` |
 | `report` | `skills`, `endingNames` |
+
+Every scene can name a `place` (`unit9`, `street`, `office`, `lab`, `stagedoor`, `hall`) and a `surface` for documents to lie on (`wood`, `cork`, `steel`, `stone`). Places and portraits are drawn in `js/feel.js`; a cast member whose id has no portrait there simply speaks without one. A `tail` map can list `nodes` (corners) and a `start` index for the walking marker.
 
 Most scenes also take `intro` and `outro` beats. A beat is one of:
 

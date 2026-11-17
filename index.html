@@ -16,7 +16,7 @@
         <b id="bar-scene"></b>
       </div>
       <button id="clock" type="button" aria-label="Case clock">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 3.2v1.6M12 19.2v1.6M3.2 12h1.6M19.200 12h1.6"/><line id="hand-h" x1="12" y1="12" x2="12" y2="7.200"/><line id="hand-m" x1="12" y1="12" x2="12" y2="4.600"/><circle class="hub" cx="12" cy="12" r="1.100"/></svg>
         <span><b id="clock-time"></b><small id="clock-sub"></small></span>
       </button>
       <button id="btn-hint" type="button"><span>Ask Sam</span><span id="hint-pips"></span></button>
@@ -25,16 +25,20 @@
       </button>
       <div id="progress" aria-hidden="true"></div>
     </header>
+    <div id="place" aria-hidden="true"><div id="place-art"></div></div>
+    <div id="prop"></div>
     <main id="stage"></main>
     <footer id="tray" hidden></footer>
     <div id="dialogue" hidden></div>
     <div id="sheet" hidden></div>
+    <div id="wipe" hidden></div>
     <div id="stamp-layer" aria-live="polite"></div>
     <div id="toasts" aria-live="polite"></div>
   </div>
   <noscript>Case Files needs JavaScript to run.</noscript>
 
   <script src="js/engine.js"></script>
+  <script src="js/feel.js"></script>
   <script src="js/scenes.js"></script>
   <!-- Each case is one data file. Add new cases here. -->
   <script src="cases/missing-violinist.js"></script>
