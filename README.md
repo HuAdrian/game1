@@ -1,101 +1,100 @@
 # Case Files
 
-An IELTS practice game disguised as detective work. You are a trainee in Unit 9, a London police unit that solves cases where the evidence is language: forged letters, lying witnesses, torn notes. Your partner, Sam, briefs each case, reacts to what you find, and gives hints.
+An IELTS practice game disguised as detective work, built in Godot 4. You are a trainee in Unit 9, a London police unit that solves cases where the evidence is language: forged letters, lying witnesses, torn notes. Your partner, Sam, briefs each case, reacts to what you do, and gives hints.
 
 The IELTS task is the game action. Answers do jobs in the story, a wrong answer changes what happens next, and where the exam checks comprehension you prove your answer by tapping the line that shows it.
 
-**Case 01: The Missing Violinist** (about 12 minutes, written for a band 6.5 target)
-
-| Scene | IELTS skill | What you do |
-| --- | --- | --- |
-| Briefing | | Sam sets up the case and the deadline |
-| Wiretap | Listening Part 1 | Hear a voicemail once and type the time, address and names |
-| Tail | Listening Part 2 | Follow spoken directions and tap the building on a map |
-| Interrogation | Reading, True / False / Not Given | Check six statements against a schedule; tap the line that proves each one |
-| Evidence board | Writing Task 1 skills | Find the sentence that misreads a chart, then choose the accurate rewrite |
-| Forgery lab | Grammar | Find three mistakes in a letter and choose each correction |
-| Torn note | Linking words | Rebuild a note by choosing the linkers that make its logic work |
-| Accusation | | Name one suspect and the three cards that prove it (three endings) |
-| Case report | | Estimated bands, plus a result code to compare with a friend |
+**Case 01: The Missing Violinist** (about 15 minutes, written for a band 6.5 target)
 
 ## Play
 
-It is a static site: no server, no build step.
+The repository root holds the Web export (`index.html`, `index.js`, `index.wasm`, `index.pck`), so GitHub Pages serves the game from the root of the site. The first load downloads about 35 MB; after that the browser keeps it.
 
-- **On your computer:** open `index.html` in a browser.
-- **On GitHub Pages:** in the repository go to Settings → Pages, choose "Deploy from a branch", pick the branch and the `/ (root)` folder, and save. The game is then at `https://<user>.github.io/<repo>/`.
+To run it on your own computer, serve the folder (the game cannot start from a `file://` address):
 
-Calls and radio messages use the browser's built-in text-to-speech with a British voice, so turn the sound on. If a device has no speech voice, the game shows the transcript to read once instead. Progress and the word bank are saved in the browser (`localStorage`).
+```
+python3 -m http.server 8000      # then open http://localhost:8000
+```
 
-## How it works
+Calls and radio messages are spoken with the browser's built-in speech in a British voice. If a device has no voice, the game shows the transcript to read once instead. Typed answers use real text boxes laid over the game, so the phone's own keyboard opens.
 
-- **Case clock.** It shows when the case is on course to close (6:30 pm with no mistakes; curtain is 7:30 pm). It moves only when the player makes a mistake (5 minutes), loses a lead (10) or takes a hint (10). Reading slowly costs nothing.
-- **Cold leads.** Wrong wiretap notes send a constable to the wrong place, and the facts must be won again from a faster phone call. A wrong building on the map means a second, differently worded radio message. A misjudged statement comes back as a harder paraphrase; if Sam has to settle a lie, the suspect does not crack and a warrant costs more time.
-- **Hints.** Three per case. Sam points to the right paragraph (or replays the right part of the tape), never the answer.
-- **Notebook.** Case notes and evidence cards, plus a word bank that saves every paraphrase, linker, grammar trap and chart phrase the player meets. The word bank persists across cases.
-- **Bands.** Estimated from the share of answers that were right first time. It is a rough guide from one short case, not an official score.
-- **Result code.** For example `MV01-BVJYAV`. It packs the ending, three bands, hints used and minutes lost; paste a friend's code into the report to compare.
+The earlier HTML version is kept in `legacy-html/`.
 
-## Look, sound and touch
+## How a case plays
 
-- **Places.** Every scene has an illustrated backdrop (Unit 9's basement office, the street, the agent's office, the lab, the stage door, the concert hall). It fills the screen while people talk and shrinks to a band above the document while you work.
-- **People.** Sam and the cast are drawn as ink portraits that appear when they speak. Sam looks pleased or annoyed after your last action; the suspect in the interrogation gets visibly more nervous as lies are proven.
-- **The desk.** Scenes change with a case folder sliding over the desk. The notebook has a ruled Notes page, a cork Board with the evidence cards pinned up, and the Words page. The case clock has hands that sweep forward when time is lost.
-- **Feedback.** Stamps slam down with a thud, a screen shake and ink flecks. Paper, pen, pin, tape, phone and radio sounds are synthesised with Web Audio, so there are no audio files. Sound effects and screen shake can each be switched off on the home screen, and shake is off automatically when the device asks for reduced motion.
-- **Touch.** On the map you walk a marker from corner to corner and it leaves a trail. Sentences are underlined, circled, ticked or struck through as if with a pen. The accusation ties red string from the suspect to the chosen cards.
+1. **Briefing.** Sam sets up the case. It is 5:40 pm; the curtain goes up at 7:30.
+2. **Leads.** You choose which leads to follow and in what order. Every lead costs time, mistakes and hints cost more, and the leads together cost more than the time you have. Two leads are optional and give extra evidence cards and word bank entries.
 
-None of this changes a task: the texts, answers, scoring and case logic are the same.
+   | Lead | IELTS skill | Costs | Gives |
+   | --- | --- | --- | --- |
+   | The Wiretap | Listening Part 1: type what you hear | 15 min | the voicemail card |
+   | The Tail (after the wiretap) | Listening Part 2: follow directions on a map | 15 min | the car hire receipt |
+   | The Interrogation | Reading: True / False / Not Given | 20 min | the broken alibi, two cards about other suspects |
+   | The Sales Report (after the interview) | Writing Task 1 skills: find and fix the sentence that misreads a chart | 10 min | the sales report card |
+   | The Forgery Lab | Grammar: find three mistakes and choose the corrections | 15 min | the forgery card |
+   | The Torn Note | Linking words: rebuild a note so its logic works | 15 min | the note card; Mira is found |
+   | The Front Desk (optional) | Reading: find the line that answers the question | 15 min | the front desk log |
+   | The Green Room (optional) | Reading: find the line that answers the question | 15 min | the rehearsal room sheet |
+
+3. **Interrogation.** The suspect has a composure meter and you have credibility. You break his statements by tapping the proving line in the schedule, or by presenting an evidence card you collected earlier. The wrong card costs credibility; with none left he ends the interview and you get no alibi card.
+4. **Evidence board.** Tap two cards that explain each other and connect them. A correct pair becomes a deduction. A wrong pair costs five minutes.
+5. **Accusation.** Name a suspect and choose three proofs from the deductions you made and the cards you hold. Three strong deductions against the right person is a conviction; the right person with weaker proofs walks free; the wrong person reopens the case.
+6. **Case report.** Estimated bands for Listening, Reading and Writing from answers that were right first time, plus a result code to compare with a friend.
+
+Three hints per case: Sam points to the right part of the document or replays part of the tape, never the answer. Each costs ten minutes. The notebook keeps case notes, the evidence board, and a word bank of every paraphrase, linker, grammar trap and chart phrase you meet.
 
 ## Project layout
 
 ```
-index.html                  page shell; lists the case files to load
-css/style.css               the desk, paper, ink and red
-js/engine.js                clock, dialogue, hints, notebook, speech, saving, scoring, runner
-js/feel.js                  sounds, screen shake, pen marks, illustrated places, ink portraits
-js/scenes.js                scene types and document renderers
-cases/missing-violinist.js  Case 01, as data
+index.*                      the Web export that GitHub Pages serves
+godot/                       the Godot 4.3 project
+  project.godot, main.tscn
+  export_presets.cfg         Web preset (thread support off, so no special server headers are needed)
+  cases/missing_violinist.json   Case 01, as data
+  scripts/main.gd            engine: screen, people, dialogue, clock, hints, notebook, sound, speech, saving, scoring
+  scripts/scenes.gd          one function per scene type
+  scripts/ui.gd              paper-and-ink interface builders
+  scripts/clock_face.gd, pen_mark.gd, map_view.gd, chart_view.gd   custom-drawn pieces
+  web/head_include.html      browser bridge: speech, typed-answer boxes, clipboard
+  assets/
+    places/        one image per location (unit9, street, office, lab, stagedoor, hall)
+    characters/    one image per person and mood, named <person>_<mood>.png
+    ui/            desk surfaces, folder, pin, tape, tape reel
+    audio/         sound effects (.wav)
+    fonts/         Crimson Text, Courier Prime, Kalam (SIL Open Font License)
+tools/make_assets.js         regenerates the placeholder art and sounds
+legacy-html/                 the earlier HTML version
 ```
+
+## Replacing the placeholder art
+
+All artwork and sound is loaded by file name from `godot/assets`. To use finished art, save it over the placeholder with the same name and export again; no code changes.
+
+- **Places:** `places/<id>.png`, landscape 4:3 (the placeholders are 960 x 720). The game crops to the middle band while a document is open, so keep the important things in the middle third.
+- **Characters:** `characters/<person>_<mood>.png`, a bust on a transparent background (placeholders are 400 x 480), feet of the bust at the bottom edge. Moods in use: `neutral`, `pleased`, `annoyed` for Sam; `neutral`, `smug`, `nervous`, `sweating`, `cracked` for Victor. If a mood file is missing the game uses `<person>_neutral.png`.
+- **Sounds:** `audio/<name>.wav`.
 
 ## Adding a case
 
-A case is one data file. Copy `cases/missing-violinist.js`, change the content, and add a `<script>` tag for it in `index.html` after the existing case. No engine changes are needed while you use the existing scene types.
+A case is one JSON file in `godot/cases`. Copy `missing_violinist.json`, change the content, and add its path to `CASES` at the top of `scripts/main.gd`. No other code changes are needed while you use the existing scene types.
 
-```js
-CaseFiles.registerCase({
-  id: 'my-case', code: 'XY', number: '02', title: '…', tagline: '…', minutes: 12,
-  skills: ['Listening', 'Reading', 'Writing'],
-  clock: { start: '18:30', deadline: '19:30', comfortable: '19:00', deadlineName: 'curtain' },
-  hints: 3, hintCost: 10, mistakeCost: 5,
-  cast: { sam: { name: 'Sam', role: '…', initials: 'S', tone: 'ink' }, /* … */ },
-  scenes: [ /* in play order */ ],
-  evidence: [ /* cards for the accusation; proves: true on the three that convict */ ]
-});
+Top-level keys: `id`, `code`, `number`, `title`, `clock` (start, deadline), `hints`, `hintCost`, `mistakeCost`, `cast`, `briefing`, `hub`, `leads`, `board`, `accusation`, `report`, `evidence`.
+
+- `leads[]`: `id`, `cost` in minutes, `teaser`, optional `requires` (lead ids) and `optional`, and a `scene`.
+- `scene.type`: `wiretap`, `tail`, `interrogation`, `chart`, `forgery`, `torn` or `scan`. Each scene also names a `place` and a `surface` (`desk`, `cork`, `steel`, `stone`).
+- `interrogation`: `statements` checked against `doc` (each with `verdict` T/F/NG, `proof` line ids and a `harder` paraphrase), and `cardStatements` that only an evidence card can break (`card` is the id of the right one).
+- `board.deductions[]`: `cards` (two evidence ids), `title`, `text`, Sam's line, and `strong: true` if it counts toward a conviction.
+- `evidence[]`: the cards, each with `id`, `title`, `text`.
+
+Dialogue lines are strings. A plain string is Sam; `"@victor ..."` is spoken by the cast member `victor`; `*stars*` mark emphasis. Story beats can also be `{ "doc": ... }`, `{ "fact": ... }`, `{ "evidence": "id" }`, `{ "word": ... }` or `{ "lose": 10 }`.
+
+## Building the Web export
+
+With Godot 4.3 and its export templates installed:
+
+```
+cd godot
+godot --headless --export-release Web ../index.html
 ```
 
-Scene types (`type` on each scene):
-
-| Type | Needs |
-| --- | --- |
-| `story` | `beats` |
-| `wiretap` | `form.fields` (each with `accept` answers and the script `lines` a hint replays), `script`, `retry` (the harder call) |
-| `tail` | `map` (roads, labels, blocks, marks), `script`, `answer`, `retry` |
-| `interrogation` | `doc.sections[].lines`, `statements` (each with `verdict` T/F/NG, `proof` line ids, a `harder` paraphrase, `hint`, `word`), `need`, `crack`, `noCrack` |
-| `chart` | `chart.bars`, `sentences` (one with `false: true`), `rewrite.options` |
-| `forgery` | `letter.paragraphs` (sentences; the wrong ones carry `error` with `bad`, `good`, `options`, `word`) |
-| `torn` | `pieces` (each with `before`, `after`, `options`, `answer`, `why`, `hint`, `word`) |
-| `accusation` | `suspects`, `culprit`, `endings` |
-| `report` | `skills`, `endingNames` |
-
-Every scene can name a `place` (`unit9`, `street`, `office`, `lab`, `stagedoor`, `hall`) and a `surface` for documents to lie on (`wood`, `cork`, `steel`, `stone`). Places and portraits are drawn in `js/feel.js`; a cast member whose id has no portrait there simply speaks without one. A `tail` map can list `nodes` (corners) and a `start` index for the walking marker.
-
-Most scenes also take `intro` and `outro` beats. A beat is one of:
-
-- a string: a line of dialogue. Plain strings are Sam; `"@victor …"` is spoken by cast member `victor`; `*stars*` mark emphasis.
-- `{ doc: { kind: 'sheet' | 'receipt' | 'newspaper', … }, button: '…' }`: a document to read.
-- `{ fact: { title, text } }`: a case note for the notebook.
-- `{ evidence: 'card-id' }`: hands the player an evidence card.
-- `{ word: { t, a, b, n } }`: a word bank entry (`t` is `paraphrase`, `trap`, `chart`, `grammar` or `linker`).
-- `{ lose: 10 }`: minutes lost on the case clock.
-
-To add a new kind of task, register it in `js/scenes.js` with `CaseFiles.registerScene('my-type', async (scene, ctx) => { … })`. The `ctx` object gives a scene the stage and tray, `say`, `play`, `lose`, `mark`, `word`, `fact`, `evidence`, `setHint`, `stamp` and `speech`.
+The preset has thread support switched off, because GitHub Pages cannot send the headers a threaded build needs. If you edit `web/head_include.html`, paste its contents into the "Head Include" field of the Web preset (or into `html/head_include` in `export_presets.cfg`) before exporting.

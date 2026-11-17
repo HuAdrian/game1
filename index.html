@@ -1,47 +1,299 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#d8c39a">
-  <title>Case Files</title>
-  <meta name="description" content="An IELTS practice game disguised as detective work.">
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-  <div id="app">
-    <header id="bar" hidden>
-      <div class="bar-title">
-        <span id="bar-case"></span>
-        <b id="bar-scene"></b>
-      </div>
-      <button id="clock" type="button" aria-label="Case clock">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 3.2v1.6M12 19.2v1.6M3.2 12h1.6M19.200 12h1.6"/><line id="hand-h" x1="12" y1="12" x2="12" y2="7.200"/><line id="hand-m" x1="12" y1="12" x2="12" y2="4.600"/><circle class="hub" cx="12" cy="12" r="1.100"/></svg>
-        <span><b id="clock-time"></b><small id="clock-sub"></small></span>
-      </button>
-      <button id="btn-hint" type="button"><span>Ask Sam</span><span id="hint-pips"></span></button>
-      <button id="btn-notebook" type="button" aria-label="Notebook">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z"/><path d="M6 3v18M3 7h3M3 12h3M3 17h3M10 8h5M10 12h5"/></svg>
-      </button>
-      <div id="progress" aria-hidden="true"></div>
-    </header>
-    <div id="place" aria-hidden="true"><div id="place-art"></div></div>
-    <div id="prop"></div>
-    <main id="stage"></main>
-    <footer id="tray" hidden></footer>
-    <div id="dialogue" hidden></div>
-    <div id="sheet" hidden></div>
-    <div id="wipe" hidden></div>
-    <div id="stamp-layer" aria-live="polite"></div>
-    <div id="toasts" aria-live="polite"></div>
-  </div>
-  <noscript>Case Files needs JavaScript to run.</noscript>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<title>Case Files</title>
+		<style>
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
 
-  <script src="js/engine.js"></script>
-  <script src="js/feel.js"></script>
-  <script src="js/scenes.js"></script>
-  <!-- Each case is one data file. Add new cases here. -->
-  <script src="cases/missing-violinist.js"></script>
-  <script>CaseFiles.boot();</script>
-</body>
+body {
+	color: white;
+	background-color: black;
+	overflow: hidden;
+	touch-action: none;
+}
+
+#canvas {
+	display: block;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+#status, #status-splash, #status-progress {
+	position: absolute;
+	left: 0;
+	right: 0;
+}
+
+#status, #status-splash {
+	top: 0;
+	bottom: 0;
+}
+
+#status {
+	background-color: #242424;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	visibility: hidden;
+}
+
+#status-splash {
+	max-height: 100%;
+	max-width: 100%;
+	margin: auto;
+}
+
+#status-progress, #status-notice {
+	display: none;
+}
+
+#status-progress {
+	bottom: 10%;
+	width: 50%;
+	margin: 0 auto;
+}
+
+#status-notice {
+	background-color: #5b3943;
+	border-radius: 0.5rem;
+	border: 1px solid #9b3943;
+	color: #e0e0e0;
+	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+	line-height: 1.3;
+	margin: 0 2rem;
+	overflow: hidden;
+	padding: 1rem;
+	text-align: center;
+	z-index: 1;
+}
+		</style>
+		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
+<meta name="theme-color" content="#d8c39a">
+<style>
+  @font-face { font-family: "CF Hand"; src: url("godot/assets/fonts/Kalam-Regular.ttf"); font-display: swap; }
+  html, body { background: #d8c39a; overscroll-behavior: none; }
+  /* Real text boxes laid over the canvas, so the phone keyboard opens the normal way. */
+  .cf-input { position: fixed; z-index: 5; box-sizing: border-box; margin: 0; padding: 0 4px; border: 0; border-radius: 0; outline: none;
+    background: transparent; color: #23447c; font-family: "CF Hand", "Bradley Hand", "Segoe Print", cursive; -webkit-appearance: none; appearance: none; }
+  .cf-input:focus { background: rgba(255, 255, 255, .75); }
+  .cf-input.caps { text-transform: uppercase; font-family: "Courier New", monospace; font-weight: 700; color: #1c2530; }
+</style>
+<script>
+/* Bridge between the Godot game and the browser: speech for calls, typed answers, clipboard. */
+(function () {
+  'use strict';
+  var synth = window.speechSynthesis, hasSpeech = !!(synth && window.SpeechSynthesisUtterance), voices = [], keep = [];
+  function loadVoices() { try { voices = synth.getVoices() || []; } catch (e) {} }
+  if (hasSpeech) { loadVoices(); if (synth.addEventListener) synth.addEventListener('voiceschanged', loadVoices); }
+  // Phones only allow speech that was first started inside a tap, so unlock it on the first touch.
+  var unlocked = false;
+  function unlock() {
+    if (unlocked || !hasSpeech) return; unlocked = true;
+    try { var u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); } catch (e) {}
+  }
+  window.addEventListener('pointerdown', unlock, true); window.addEventListener('touchend', unlock, true);
+
+  function pick(prefer) {
+    var gb = voices.filter(function (v) { return /^en[-_]GB/i.test(v.lang); });
+    var pool = gb.length ? gb : voices.filter(function (v) { return /^en/i.test(v.lang); });
+    if (!pool.length) return null;
+    var fem = /female|kate|serena|martha|hazel|susan|libby|sonia|maisie|stephanie|fiona|moira|amy|emma/i;
+    var mal = /\bmale|daniel|arthur|george|oliver|ryan|thomas|malcolm|gordon|brian/i;
+    var want = prefer === 'male' ? pool.filter(function (v) { return mal.test(v.name) && !/female/i.test(v.name); }) : pool.filter(function (v) { return fem.test(v.name); });
+    if (want.length) return want[0];
+    return prefer === 'male' && pool.length > 1 ? pool[1] : pool[0];
+  }
+
+  window.cfSpeech = {
+    state: 'idle', line: 0,
+    /** Speaks the lines in order with a British voice. state ends as "done" (audio played) or "fail" (no voice). */
+    speak: function (json) {
+      var o = JSON.parse(json), self = this, lines = o.lines, done = false, started = false, t0 = Date.now(), w1, w2;
+      var chars = lines.join(' ').length;
+      self.state = 'playing'; self.line = 0;
+      function finish(ok) { if (done) return; done = true; clearTimeout(w1); clearTimeout(w2); keep = []; self.state = ok ? 'done' : 'fail'; }
+      if (!hasSpeech) { finish(false); return; }
+      try {
+        if (synth.speaking || synth.pending) synth.cancel();
+        if (synth.paused) synth.resume();
+        var voice = pick(o.prefer);
+        keep = lines.map(function (text, i) {
+          var u = new SpeechSynthesisUtterance(text);
+          u.lang = 'en-GB'; if (voice) u.voice = voice; u.rate = o.rate || 0.95; u.pitch = o.pitch || 1;
+          u.onstart = function () { started = true; self.line = i; };
+          u.onerror = function (e) { if (e.error === 'interrupted' || e.error === 'canceled') finish(started); else finish(false); };
+          if (i === lines.length - 1) u.onend = function () { finish(Date.now() - t0 > Math.min(1500, chars * 8)); };
+          return u;
+        });
+        keep.forEach(function (u) { synth.speak(u); });
+      } catch (e) { finish(false); return; }
+      w1 = setTimeout(function () { if (!started) { try { synth.cancel(); } catch (e) {} finish(false); } }, 5000);
+      w2 = setTimeout(function () { finish(true); }, chars * 120 + 15000);
+    },
+    stop: function () { try { if (hasSpeech) synth.cancel(); } catch (e) {} this.state = 'idle'; }
+  };
+
+  var inputs = {};
+  window.cfInput = {
+    /** Places one text box per field over the canvas. Rects are fractions of the canvas. Returns the current values. */
+    sync: function (json) {
+      var list = JSON.parse(json), canvas = document.getElementById('canvas') || document.querySelector('canvas');
+      var r = canvas.getBoundingClientRect(), seen = {}, out = {};
+      list.forEach(function (f) {
+        var el = inputs[f.id];
+        if (!el) {
+          el = document.createElement('input');
+          el.type = 'text'; el.className = 'cf-input' + (f.caps ? ' caps' : ''); el.id = 'cf-' + f.id;
+          el.autocomplete = 'off'; el.spellcheck = false; el.setAttribute('autocapitalize', f.caps ? 'characters' : 'off'); el.setAttribute('autocorrect', 'off');
+          el.setAttribute('aria-label', f.label || f.id); el.setAttribute('enterkeyhint', 'done');
+          el.value = f.value || '';
+          el.addEventListener('keydown', function (e) { if (e.key === 'Enter') el.blur(); e.stopPropagation(); });
+          ['keyup', 'keypress', 'pointerdown', 'mousedown', 'touchstart'].forEach(function (t) { el.addEventListener(t, function (e) { e.stopPropagation(); }); });
+          document.body.appendChild(el); inputs[f.id] = el;
+        }
+        el.style.left = (r.left + f.x * r.width) + 'px'; el.style.top = (r.top + f.y * r.height) + 'px';
+        el.style.width = (f.w * r.width) + 'px'; el.style.height = (f.h * r.height) + 'px';
+        el.style.fontSize = (f.size * r.height) + 'px';
+        el.style.display = f.show ? '' : 'none';
+        el.disabled = !!f.locked;
+        if (f.force != null && el.value !== f.force) el.value = f.force;
+        seen[f.id] = true; out[f.id] = el.value;
+      });
+      Object.keys(inputs).forEach(function (id) { if (!seen[id]) { inputs[id].remove(); delete inputs[id]; } });
+      return JSON.stringify(out);
+    }
+  };
+
+  window.cfCopy = function (text) { try { navigator.clipboard.writeText(text); return true; } catch (e) { return false; } };
+  window.cfTestMode = /[?&]cftest/.test(location.search);
+})();
+</script>
+
+	</head>
+	<body>
+		<canvas id="canvas">
+			Your browser does not support the canvas tag.
+		</canvas>
+
+		<noscript>
+			Your browser does not support JavaScript.
+		</noscript>
+
+		<div id="status">
+			<img id="status-splash" src="index.png" alt="">
+			<progress id="status-progress"></progress>
+			<div id="status-notice"></div>
+		</div>
+
+		<script src="index.js"></script>
+		<script>
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":1851104,"index.wasm":35376909},"focusCanvas":true,"gdextensionLibs":[]};
+const GODOT_THREADS_ENABLED = false;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const statusOverlay = document.getElementById('status');
+	const statusProgress = document.getElementById('status-progress');
+	const statusNotice = document.getElementById('status-notice');
+
+	let initializing = true;
+	let statusMode = '';
+
+	function setStatusMode(mode) {
+		if (statusMode === mode || !initializing) {
+			return;
+		}
+		if (mode === 'hidden') {
+			statusOverlay.remove();
+			initializing = false;
+			return;
+		}
+		statusOverlay.style.visibility = 'visible';
+		statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
+		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
+		statusMode = mode;
+	}
+
+	function setStatusNotice(text) {
+		while (statusNotice.lastChild) {
+			statusNotice.removeChild(statusNotice.lastChild);
+		}
+		const lines = text.split('\n');
+		lines.forEach((line) => {
+			statusNotice.appendChild(document.createTextNode(line));
+			statusNotice.appendChild(document.createElement('br'));
+		});
+	}
+
+	function displayFailureNotice(err) {
+		console.error(err);
+		if (err instanceof Error) {
+			setStatusNotice(err.message);
+		} else if (typeof err === 'string') {
+			setStatusNotice(err);
+		} else {
+			setStatusNotice('An unknown error occured');
+		}
+		setStatusMode('notice');
+		initializing = false;
+	}
+
+	const missing = Engine.getMissingFeatures({
+		threads: GODOT_THREADS_ENABLED,
+	});
+
+	if (missing.length !== 0) {
+		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
+			// There's a chance that installing the service worker would fix the issue
+			Promise.race([
+				navigator.serviceWorker.getRegistration().then((registration) => {
+					if (registration != null) {
+						return Promise.reject(new Error('Service worker already exists.'));
+					}
+					return registration;
+				}).then(() => engine.installServiceWorker()),
+				// For some reason, `getRegistration()` can stall
+				new Promise((resolve) => {
+					setTimeout(() => resolve(), 2000);
+				}),
+			]).catch((err) => {
+				console.error('Error while registering service worker:', err);
+			}).then(() => {
+				window.location.reload();
+			});
+		} else {
+			// Display the message as usual
+			const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
+			displayFailureNotice(missingMsg + missing.join('\n'));
+		}
+	} else {
+		setStatusMode('progress');
+		engine.startGame({
+			'onProgress': function (current, total) {
+				if (current > 0 && total > 0) {
+					statusProgress.value = current;
+					statusProgress.max = total;
+				} else {
+					statusProgress.removeAttribute('value');
+					statusProgress.removeAttribute('max');
+				}
+			},
+		}).then(() => {
+			setStatusMode('hidden');
+		}, displayFailureNotice);
+	}
+}());
+		</script>
+	</body>
 </html>
+
