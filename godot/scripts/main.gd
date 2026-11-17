@@ -21,7 +21,14 @@ class Wait:
 	signal done(value)
 
 var web := OS.has_feature("web")
+## The game is running inside a mini game host (WeChat): no HTML page, no speech engine.
+var mini := false
+## The game is running in a browser page with this project's HTML shell.
+var web_page := false
+var sdk: Node = null
 var test_mode := false
+var voice_player: AudioStreamPlayer
+var key_field := ""   # id of the answer field the mini game keyboard is typing into
 var data: Dictionary = {}      # the case
 var state: Dictionary = {}     # the player's progress in it
 var scenes: Scenes
@@ -77,9 +84,16 @@ func _ready() -> void:
 	UI.init_fonts()
 	scenes = Scenes.new()
 	scenes.g = self
-	if web:
+	sdk = get_node_or_null("/root/MiniGameSDK")
+	mini = web and sdk != null and bool(sdk.get("is_mini_game"))
+	web_page = web and not mini
+	if web_page:
 		test_mode = bool(JavaScriptBridge.eval("window.cfTestMode === true"))
+	if mini:
+		sdk.keyboard_event.connect(_on_keyboard)
 	_build()
+	voice_player = AudioStreamPlayer.new()
+	add_child(voice_player)
 	for i in 8:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -87,7 +101,7 @@ func _ready() -> void:
 	var prefs = _read_json("user://prefs.json")
 	if prefs is Dictionary:
 		sound_on = prefs.get("sound", true)
-	if web and test_mode:
+	if web_page and test_mode:
 		js_cb = JavaScriptBridge.create_callback(_js_show)
 		JavaScriptBridge.get_interface("window").cfShow = js_cb
 	home()
@@ -284,7 +298,7 @@ func _process(dt: float) -> void:
 		trauma = max(0.0, trauma - 1.7 * dt)   # always decays back to rest
 		shake_t += dt * 30.0
 	_layout()
-	if web:
+	if web_page:
 		_sync_fields()
 		if test_mode:
 			publish_t -= dt
@@ -1015,10 +1029,14 @@ func transition(sc: Dictionary) -> void:
 
 # ───────────────────────── speech (calls and radio) ─────────────────────────
 
-## Speaks lines with a British voice in the browser. Returns false when the device has
-## no voice, so the caller can show a transcript instead.
-func speak(lines: Array, voice: Dictionary, on_line: Callable = Callable()) -> bool:
-	if not web:
+## Speaks the lines aloud. In the mini game it plays the recorded clips (clips[i] is
+## lines[i] spoken); in a browser it uses the browser's British voice. on_line(i) is
+## called as line i starts. Returns false when nothing could be played, so the caller
+## can show a transcript instead.
+func speak(lines: Array, voice: Dictionary, on_line: Callable = Callable(), clips: Array = []) -> bool:
+	if mini:
+		return await _play_clips(clips, lines.size(), on_line)
+	if not web_page:
 		return false
 	var payload := {"lines": lines, "prefer": voice.get("prefer", "female"), "rate": voice.get("rate", 0.95), "pitch": voice.get("pitch", 1.0)}
 	JavaScriptBridge.get_interface("window").cfSpeech.speak(JSON.stringify(payload))
@@ -1034,15 +1052,44 @@ func speak(lines: Array, voice: Dictionary, on_line: Callable = Callable()) -> b
 	return false
 
 
+const VOICE_DIR := "res://assets/audio/voice/"
+
+## Plays recorded clips one after another, as one recording.
+func _play_clips(clips: Array, count: int, on_line: Callable) -> bool:
+	if clips.size() != count or count == 0:
+		return false
+	var streams: Array = []
+	for name in clips:
+		var path: String = VOICE_DIR + str(name)
+		if not ResourceLoader.exists(path):
+			return false
+		streams.append(load(path))
+	for i in streams.size():
+		if on_line.is_valid():
+			on_line.call(i)
+		voice_player.stream = streams[i]
+		voice_player.play()
+		await voice_player.finished
+		if voice_player.has_meta("stopped"):
+			voice_player.remove_meta("stopped")
+			return true
+	return true
+
+
 func stop_speech() -> void:
-	if web:
+	if mini and voice_player.playing:
+		voice_player.set_meta("stopped", true)
+		voice_player.stop()
+		voice_player.finished.emit()
+	elif web_page:
 		JavaScriptBridge.eval("window.cfSpeech.stop()")
 
 
 # ───────────────────────── typed answers ─────────────────────────
 
 ## A text box for a typed answer. In the browser a real HTML input is laid over it, so
-## the phone's own keyboard opens; on desktop it is an ordinary LineEdit.
+## the phone's own keyboard opens; in the mini game a tap opens the host's keyboard
+## through MiniGameSDK; on desktop it is an ordinary LineEdit.
 func add_field(id: String, label: String, caps := false) -> LineEdit:
 	var le := LineEdit.new()
 	le.custom_minimum_size = Vector2(0, 44)
@@ -1061,16 +1108,50 @@ func add_field(id: String, label: String, caps := false) -> LineEdit:
 	UI.mark(le, "field-" + id)
 	le.text_changed.connect(func(_t: String) -> void: sfx("key"))
 	var f := {"id": id, "le": le, "label": label, "caps": caps, "locked": false, "force": null, "last": ""}
-	if web:
+	if web_page:
 		le.editable = false
 		le.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		le.add_theme_color_override("font_uneditable_color", Color(UI.BLUE, 0.0))
+	elif mini:
+		le.editable = false
+		UI.tappable(le, "", func() -> void: _open_keyboard(id))
 	fields.append(f)
 	return le
 
 
+func _open_keyboard(id: String) -> void:
+	for f in fields:
+		if f.id == id and not f.locked and is_instance_valid(f.le):
+			key_field = id
+			_mark_typing()
+			sdk.show_keyboard(f.le.text, 60, false)
+			return
+
+
+## The mini game keyboard reports each change ("input") and when it closes.
+func _on_keyboard(kind: String, value: String) -> void:
+	for f in fields:
+		if f.id == key_field and not f.locked and is_instance_valid(f.le):
+			if f.le.text != value:
+				f.le.text = value
+				sfx("key")
+	if kind != "input":
+		sdk.hide_keyboard()
+		key_field = ""
+		_mark_typing()
+
+
+## Underlines the field being typed into in red.
+func _mark_typing() -> void:
+	for f in fields:
+		if is_instance_valid(f.le):
+			var st: StyleBoxFlat = f.le.get_theme_stylebox("read_only")
+			st.border_color = UI.RED if f.id == key_field else UI.INK
+			st.border_width_bottom = 3 if f.id == key_field else 2
+
+
 func field_value(id: String) -> String:
-	if web:
+	if web_page:
 		_sync_fields()   # read the text boxes now, not as they were last frame
 	for f in fields:
 		if f.id == id:
@@ -1083,6 +1164,9 @@ func lock_field(id: String, color: Color, text := "") -> void:
 	for f in fields:
 		if f.id == id:
 			f.locked = true
+			if key_field == id:
+				sdk.hide_keyboard()
+				key_field = ""
 			if text != "":
 				f.le.text = text
 				f.force = text
@@ -1355,7 +1439,7 @@ func sound_check() -> void:
 	sfx("ring")
 	toast("Playing a test message…", "")
 	var c = _read_json(CASES[0])
-	var ok := await speak([c.get("soundCheck", "This is a sound check.")], {"prefer": "female"})
+	var ok := await speak([c.get("soundCheck", "This is a sound check.")], {"prefer": "female"}, Callable(), [c.get("soundCheckAudio", "")])
 	toast("If you heard a voice, you’re ready." if ok else "No voice found on this device. Calls will be shown as text instead.", "" if ok else "bad")
 
 

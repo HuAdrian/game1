@@ -5,7 +5,7 @@ extends SceneTree
 ##   cd godot && godot --headless --path . --script ../tools/export_wechat.gd
 const APPID := "wxd74107578cbd5867"
 const ORIENTATION := "portrait"
-const PRESET := "Web"   # thread support off
+const PRESET := "MiniGame"   # thread support off; keeps the recorded clips the Web preset leaves out
 
 func _init() -> void:
 	var out := ProjectSettings.globalize_path("res://").path_join("../minigame/wechat").simplify_path()

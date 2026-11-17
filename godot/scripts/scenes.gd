@@ -219,7 +219,7 @@ func _make_tape(label: String, who: String) -> Dictionary:
 
 
 ## Plays a script through the tape. If the device has no voice, shows the transcript to read once.
-func _play_tape(tape: Dictionary, lines: Array, speaker: String) -> void:
+func _play_tape(tape: Dictionary, lines: Array, speaker: String, clips: Array = []) -> void:
 	var cast: Dictionary = g.data.cast[speaker]
 	tape.status.text = "Playing…"
 	g.show_actor(speaker, "neutral", "right")
@@ -229,7 +229,7 @@ func _play_tape(tape: Dictionary, lines: Array, speaker: String) -> void:
 			r.rotation = a, 0.0, TAU, 1.6)
 	var ok: bool = await g.speak(lines, cast.get("voice", {}), func(i: int) -> void:
 		tape.bar.value = 100.0 * float(i + 1) / lines.size()
-		g.react(speaker, "nod"))
+		g.react(speaker, "nod"), clips)
 	spin.kill()
 	if not ok:
 		tape.status.text = "No voice on this device"
@@ -251,12 +251,18 @@ func _play_tape(tape: Dictionary, lines: Array, speaker: String) -> void:
 	g.hide_actor(speaker)
 
 
+## The recorded clips for a listening round: audio[i] is script[i] spoken.
+func _round_audio(sc: Dictionary, round_id: String) -> Array:
+	var src: Dictionary = sc if round_id == "first" else sc.get("retry", {})
+	return src.get("audio", [])
+
+
 ## Replays a few lines as a hint (audio, or as quoted text when there is no voice).
-func _replay(speaker: String, lines: Array, lead: String) -> void:
+func _replay(speaker: String, lines: Array, lead: String, clips: Array = []) -> void:
 	if lead != "":
 		await g.say([lead])
 	g.show_actor(speaker, "neutral", "right")
-	var ok: bool = await g.speak(lines, g.data.cast[speaker].get("voice", {}))
+	var ok: bool = await g.speak(lines, g.data.cast[speaker].get("voice", {}), Callable(), clips)
 	if not ok:
 		var quoted: Array = []
 		for l in lines:
@@ -452,6 +458,7 @@ func wiretap(sc: Dictionary) -> void:
 ## One listening round: play once, fill the open fields, hand the notes over.
 func _wiretap_round(sc: Dictionary, round_id: String, speaker: String, script: Array, line_map: Dictionary, open: Array, values: Dictionary, right: Dictionary) -> Array:
 	var cast: Dictionary = g.data.cast[speaker]
+	var audio: Array = _round_audio(sc, round_id)
 	var played_key: String = "%s.%s.played" % [sc.id, round_id]
 	var st := {"played": g.flag(played_key) != null, "busy": false}
 	var tape := _make_tape("Voicemail" if round_id == "first" else "Phone call", "%s, %s" % [cast.name, cast.role])
@@ -498,9 +505,11 @@ func _wiretap_round(sc: Dictionary, round_id: String, speaker: String, script: A
 				if f.id == target:
 					label = f.label
 			var lines: Array = []
+			var clips: Array = []
 			for i in line_map[target]:
 				lines.append(script[int(i)])
-			await _replay(speaker, lines, "%s This is the bit about “%s”." % [sc.hintLine, label])
+				clips.append(audio[int(i)] if int(i) < audio.size() else "")
+			await _replay(speaker, lines, "%s This is the bit about “%s”." % [sc.hintLine, label], clips)
 			return true)
 	tape.play.pressed.connect(func() -> void:
 		if st.played or st.busy:
@@ -511,7 +520,7 @@ func _wiretap_round(sc: Dictionary, round_id: String, speaker: String, script: A
 		tape.play.disabled = true
 		tape.play.text = "…"
 		g.sfx("clunk")
-		await _play_tape(tape, script, speaker)
+		await _play_tape(tape, script, speaker, audio)
 		g.sfx("clunk")
 		st.busy = false
 		tape.play.text = "Played"
@@ -574,6 +583,7 @@ func tail(sc: Dictionary) -> void:
 
 func _tail_round(sc: Dictionary, round_id: String, script: Array, hint_lines: Array, tried: Array) -> Dictionary:
 	var cast: Dictionary = g.data.cast[sc.speaker]
+	var audio: Array = _round_audio(sc, round_id)
 	var played_key: String = "%s.%s.played" % [sc.id, round_id]
 	var st := {"played": g.flag(played_key) != null, "busy": false, "pick": null}
 	var tape := _make_tape("Police radio", "%s, %s" % [cast.name, cast.role])
@@ -590,9 +600,11 @@ func _tail_round(sc: Dictionary, round_id: String, script: Array, hint_lines: Ar
 	var arm_hint := func() -> void:
 		g.set_hint(func() -> bool:
 			var lines: Array = []
+			var clips: Array = []
 			for i in hint_lines:
 				lines.append(script[int(i)])
-			await _replay(sc.speaker, lines, sc.hintLine)
+				clips.append(audio[int(i)] if int(i) < audio.size() else "")
+			await _replay(sc.speaker, lines, sc.hintLine, clips)
 			return true)
 	tape.play.pressed.connect(func() -> void:
 		if st.played or st.busy:
@@ -603,7 +615,7 @@ func _tail_round(sc: Dictionary, round_id: String, script: Array, hint_lines: Ar
 		tape.play.disabled = true
 		tape.play.text = "…"
 		g.sfx("static")
-		await _play_tape(tape, script, sc.speaker)
+		await _play_tape(tape, script, sc.speaker, audio)
 		g.sfx("static")
 		st.busy = false
 		tape.play.text = "Played"
@@ -1539,8 +1551,10 @@ func report() -> void:
 	copy.size_flags_horizontal = Control.SIZE_SHRINK_END
 	copy.pressed.connect(func() -> void:
 		DisplayServer.clipboard_set(code)
-		if g.web:
+		if g.web_page:
 			JavaScriptBridge.get_interface("window").cfCopy(code)
+		elif g.mini:
+			g.sdk.set_clipboard(code)
 		copy.text = "Copied")
 	kids.append(UI.hbox([UI.panel(UI.box(UI.PAPER, 8, 8, 2, UI.RED), [code_l]), copy], 8))
 	kids.append(UI.label("Send it to someone who played this case. Type theirs here to compare.", 15, UI.serif_i, UI.SOFT))

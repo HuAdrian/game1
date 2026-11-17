@@ -21,6 +21,9 @@ static var type: Font
 static var type_b: Font
 static var hand: Font
 static var hand_b: Font
+## Noto Sans SC subset (GB2312 + Latin + arrows): the mini game host has no system
+## fonts, so every glyph the Latin fonts lack (typed Chinese, "→") comes from here.
+static var cjk: Font
 
 
 static func init_fonts() -> void:
@@ -32,6 +35,9 @@ static func init_fonts() -> void:
 	type_b = load(d + "CourierPrime-Bold.ttf")
 	hand = load(d + "Kalam-Regular.ttf")
 	hand_b = load(d + "Kalam-Bold.ttf")
+	cjk = load(d + "NotoSansSC-Subset.woff2")
+	for f in [serif, serif_b, serif_i, type, type_b, hand, hand_b]:
+		f.fallbacks = [cjk]
 
 
 static func label(text: String, size := 20, font: Font = null, color := INK) -> Label:
