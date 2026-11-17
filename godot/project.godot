@@ -20,6 +20,10 @@ config/features=PackedStringArray("4.6", "GL Compatibility")
 boot_splash/bg_color=Color(0.847, 0.765, 0.604, 1)
 boot_splash/show_image=false
 
+[autoload]
+
+MiniGameSDK="*res://addons/godot_mini_game/MiniGameSDK.gd"
+
 [display]
 
 window/size/viewport_width=480
@@ -27,6 +31,10 @@ window/size/viewport_height=854
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=1
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_mini_game/plugin.cfg")
 
 [rendering]
 
