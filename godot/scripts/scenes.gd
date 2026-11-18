@@ -328,8 +328,8 @@ func hub() -> String:
 			status = Shell.t(l.get("locked", "Locked"))
 		elif l.get("optional", false):
 			status = Shell.t(hubd.optionalTag)
-		var title := UI.label(sc.title, 24, UI.serif_b)
-		var rows: Array = [UI.hbox([title, cost if not done else null], 6), UI.label(l.teaser, 17), UI.label((Shell.t(sc.skill) + ("   " + status if status != "" else "")).to_upper(), 12, UI.type_b, UI.RED if status != "" and not done else UI.SOFT)]
+		var title := UI.label(Shell.t(sc.title), 24, UI.serif_b)
+		var rows: Array = [UI.hbox([title, cost if not done else null], 6), UI.label(Shell.t(l.teaser), 17), UI.label((Shell.t(sc.skill) + ("   " + status if status != "" else "")).to_upper(), 12, UI.type_b, UI.RED if status != "" and not done else UI.SOFT)]
 		var card := UI.panel(UI.box(UI.PAPER if not (done or locked) else Color(UI.PAPER2, 0.75), 12, 4, 2, UI.INK if not (done or locked) else UI.RULE, 0 if done or locked else 6), [UI.vbox(rows, 3)])
 		if done:
 			PenMark.draw_on(card, "tick", UI.BLUE)
@@ -746,9 +746,9 @@ func interrogation(sc: Dictionary) -> void:
 				pass_b.pressed.connect(func() -> void: w.done.emit({"verdict": "PASS"}))
 				g.set_tray([present, pass_b])
 				return
-			var t := UI.button("TRUE", "blue", "v-T")
-			var f := UI.button("LIE", "danger", "v-F")
-			var n := UI.button("NOT GIVEN", "ghost", "v-NG")
+			var t := UI.button(Shell.t("TRUE"), "blue", "v-T")
+			var f := UI.button(Shell.t("LIE"), "danger", "v-F")
+			var n := UI.button(Shell.t("NOT GIVEN"), "ghost", "v-NG")
 			n.pressed.connect(func() -> void: w.done.emit({"verdict": "NG"}))
 			var prove := func(v: String) -> void:
 				var msg := UI.label(Shell.t("Tap the line that proves he’s lying.") if v == "F" else Shell.t("Tap the line that proves it’s true."), 17, UI.type_b, UI.RED if v == "F" else UI.BLUE)

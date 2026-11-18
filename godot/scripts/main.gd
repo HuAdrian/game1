@@ -1213,7 +1213,7 @@ func transition(sc: Dictionary) -> void:
 	var folder := UI.image("res://assets/ui/folder.png")
 	folder.stretch_mode = TextureRect.STRETCH_SCALE
 	wipe.add_child(folder)
-	var title := UI.label(str(sc.get("title", "")).to_upper(), 38, UI.type_b)
+	var title := UI.label(Shell.t(str(sc.get("title", ""))).to_upper(), 38, UI.type_b)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var plate := UI.panel(UI.box(UI.PAPER, 16, 2, 4, UI.INK, 8), [title])
 	var skill := UI.label(Shell.t(sc.get("skill", "")), 17, UI.type_b, UI.RED)
