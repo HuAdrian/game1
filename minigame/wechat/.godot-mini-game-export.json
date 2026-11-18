@@ -1,5 +1,5 @@
 {
-	"generated_at": "2026-11-17T12:56:18",
+	"generated_at": "2026-11-18T03:18:38",
 	"orientation": "portrait",
 	"output_artifacts": {
 		"adapter.js": {
@@ -19,8 +19,8 @@
 			"size": 6342168
 		},
 		"engine/godot.zip": {
-			"sha256": "19786793943d200b4bb45ad6283759c314a1746f49753d7b663901531b45317a",
-			"size": 6993842
+			"sha256": "7734cb0a1ca78e2c8b05e31759f41eea42784d2958c50420fa4e9e9fc29ba608",
+			"size": 6964117
 		},
 		"fetch.js": {
 			"sha256": "8a87da0b0d8a437d3bf4c27c2adb6397be645fe486d4a478dd6ee49591cfaa24",
