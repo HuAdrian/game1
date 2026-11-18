@@ -95,6 +95,7 @@ var js_cb
 
 
 func _ready() -> void:
+	Shell.init()
 	UI.init_fonts()
 	scenes = Scenes.new()
 	scenes.g = self
@@ -224,13 +225,13 @@ func _build() -> void:
 	clock_sub.autowrap_mode = TextServer.AUTOWRAP_OFF
 	var clock_text := UI.vbox([clock_label, clock_sub], -2)
 	var clock_box := UI.hbox([clock_face, clock_text], 6)
-	UI.tappable(clock_box, "clock", func() -> void: toast("Leads and mistakes both cost time. Curtain is at %s." % clock_text_of(deadline()), ""))
-	hint_btn = UI.button("Ask Sam", "paper", "hint")
+	UI.tappable(clock_box, "clock", func() -> void: toast(Shell.t("Leads and mistakes both cost time. Curtain is at %s.") % clock_text_of(deadline()), ""))
+	hint_btn = UI.button(Shell.t("Ask Sam"), "paper", "hint")
 	hint_btn.custom_minimum_size = Vector2(118, 44)
 	hint_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 	hint_btn.add_theme_font_size_override("font_size", 14)
 	hint_btn.pressed.connect(ask_hint)
-	note_btn = UI.button("Notes", "paper", "notebook")
+	note_btn = UI.button(Shell.t("Notes"), "paper", "notebook")
 	note_btn.custom_minimum_size = Vector2(74, 44)
 	note_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 	note_btn.add_theme_font_size_override("font_size", 14)
@@ -255,7 +256,7 @@ func _build() -> void:
 	dlg_role.autowrap_mode = TextServer.AUTOWRAP_OFF
 	dlg_text = UI.rich("", 22)
 	dlg_text.custom_minimum_size = Vector2(0, 96)
-	dlg_next = UI.label("tap", 12, UI.type, UI.SOFT)
+	dlg_next = UI.label(Shell.t("tap"), 12, UI.type, UI.SOFT)
 	dlg_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var dstyle := UI.box(UI.PAPER, 14, 12, 0, UI.INK, 10)
 	dstyle.border_width_left = 7
@@ -417,7 +418,7 @@ func to_min(hhmm: String) -> int:
 func clock_text_of(mins: int) -> String:
 	var hr := (mins / 60) % 24
 	var m := mins % 60
-	return "%d:%02d %s" % [(hr + 11) % 12 + 1, m, "pm" if hr >= 12 else "am"]
+	return Shell.clock(hr, m)
 
 
 func now() -> int:
@@ -797,7 +798,7 @@ func ensure_visible(c: Control) -> void:
 ## One big button in the tray; resolves when it is tapped.
 func proceed(text := "Continue") -> void:
 	var w := Wait.new()
-	var b := UI.button(text, "primary", "proceed")
+	var b := UI.button(Shell.t(text), "primary", "proceed")
 	b.pressed.connect(func() -> void: w.done.emit(true))
 	set_tray([b])
 	await w.done
@@ -903,10 +904,11 @@ func update_hud() -> void:
 	clock_face.minutes = t
 	clock_label.text = clock_text_of(t)
 	var late := t > deadline()
-	clock_sub.text = ("past %s!" % data.clock.deadlineName) if late else "%s %s" % [data.clock.deadlineName, clock_text_of(deadline()).replace(" pm", "")]
+	var dn := Shell.t(data.clock.deadlineName)
+	clock_sub.text = (Shell.t("past %s!") % dn) if late else "%s %s" % [dn, clock_text_of(deadline()).replace(" pm", "")]
 	clock_label.add_theme_color_override("font_color", UI.RED if late else UI.INK)
 	clock_face.late = late
-	hint_btn.text = "Ask Sam (%d)" % int(state.hints_left)
+	hint_btn.text = Shell.t("Ask Sam (%d)") % int(state.hints_left)
 
 
 func _bump_clock() -> void:
@@ -924,9 +926,9 @@ func spend(mins: int) -> void:
 	update_hud()
 	_bump_clock()
 	sfx("clock")
-	toast("%d minutes spent" % mins, "")
+	toast(Shell.t("%d minutes spent") % mins, "")
 	if before <= deadline() and now() > deadline():
-		toast("Past %s time!" % data.clock.deadlineName, "bad")
+		toast(Shell.t("Past %s time!") % Shell.t(data.clock.deadlineName), "bad")
 
 
 ## Time lost to a mistake or a hint.
@@ -942,9 +944,9 @@ func lose(mins: int) -> void:
 	sfx("clock")
 	moods["sam"] = "annoyed"
 	set_mood("sam", "annoyed")
-	toast("+%d min on the case clock" % mins, "bad")
+	toast(Shell.t("+%d min on the case clock") % mins, "bad")
 	if before <= deadline() and now() > deadline():
-		toast("Past %s time!" % data.clock.deadlineName, "bad")
+		toast(Shell.t("Past %s time!") % Shell.t(data.clock.deadlineName), "bad")
 
 
 ## Records a first-try result for the band estimate. The first write wins.
@@ -979,7 +981,7 @@ func word(entry: Variant) -> void:
 	_write_json("user://words.json", list)
 	if mini:
 		sdk.storage_set(WORDS_KEY, JSON.stringify(list))
-	toast("Saved to notebook: " + (entry.b if entry.t == "grammar" else entry.a), "note")
+	toast(Shell.t("Saved to notebook: ") + (entry.b if entry.t == "grammar" else entry.a), "note")
 	sfx("pen")
 
 
@@ -1011,7 +1013,7 @@ func give(id: String) -> void:
 	var e := card(id)
 	if e.is_empty():
 		return
-	toast("New evidence card: " + e.title, "ev")
+	toast(Shell.t("New evidence card: ") + e.title, "ev")
 	sfx("pin")
 
 
@@ -1031,12 +1033,12 @@ func ask_hint() -> void:
 	if not in_case or dlg_catch.visible or sheet.visible:
 		return
 	if not hint_fn.is_valid():
-		toast(hint_why if hint_why != "" else "Nothing to ask Sam about right now.", "")
+		toast(hint_why if hint_why != "" else Shell.t("Nothing to ask Sam about right now."), "")
 		return
 	if int(state.hints_left) <= 0:
 		await say(["No hints left. All I’ve got now is biscuits, and you can’t have those."])
 		return
-	var ok = await confirm("Ask Sam?", "Sam will show you where to look, not what the answer is. It costs %d minutes on the case clock. %d of %d hints left." % [int(data.hintCost), int(state.hints_left), int(data.hints)], "Ask Sam", "Not yet")
+	var ok = await confirm(Shell.t("Ask Sam?"), Shell.t("Sam will show you where to look, not what the answer is. It costs %d minutes on the case clock. %d of %d hints left.") % [int(data.hintCost), int(state.hints_left), int(data.hints)], Shell.t("Ask Sam"), Shell.t("Not yet"))
 	if not ok:
 		return
 	sfx("hint")
@@ -1192,7 +1194,7 @@ func pick_card(title: String, ids: Array) -> String:
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.custom_minimum_size = Vector2(0, min(420.0, get_viewport_rect().size.y * 0.5))
 	sc.add_child(list)
-	var back := UI.button("Put the cards away", "ghost", "pick-back")
+	var back := UI.button(Shell.t("Put the cards away"), "ghost", "pick-back")
 	var p := UI.panel(UI.box(UI.MANILA, 16, 16), [UI.vbox([UI.label(title, 24, UI.serif_b), sc, back], 10)])
 	w = _open_sheet(p, "pick-dim")
 	for r in rows:
@@ -1214,7 +1216,7 @@ func transition(sc: Dictionary) -> void:
 	var title := UI.label(str(sc.get("title", "")).to_upper(), 38, UI.type_b)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var plate := UI.panel(UI.box(UI.PAPER, 16, 2, 4, UI.INK, 8), [title])
-	var skill := UI.label(sc.get("skill", ""), 17, UI.type_b, UI.RED)
+	var skill := UI.label(Shell.t(sc.get("skill", "")), 17, UI.type_b, UI.RED)
 	skill.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var blurb := UI.label(sc.get("blurb", ""), 21, UI.serif_i)
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1452,8 +1454,8 @@ func open_notebook(tab: String) -> void:
 		return
 	var tabs: Array = []
 	if in_case:
-		tabs = [["notes", "Notes"], ["board", "Board"]]
-	tabs.append(["words", "Words"])
+		tabs = [["notes", Shell.t("Notes")], ["board", Shell.t("Board")]]
+	tabs.append(["words", Shell.t("Words")])
 	if tab == "":
 		tab = tabs[0][0]
 	var body := UI.vbox([], 10)
@@ -1462,10 +1464,10 @@ func open_notebook(tab: String) -> void:
 	sc.custom_minimum_size = Vector2(0, get_viewport_rect().size.y * 0.58)
 	sc.add_child(body)
 	var tab_row := UI.hbox([], 4)
-	var close := UI.button("Close", "ghost", "nb-close")
+	var close := UI.button(Shell.t("Close"), "ghost", "nb-close")
 	close.custom_minimum_size = Vector2(90, 44)
 	close.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var title := UI.label("Notebook", 32, UI.hand_b, UI.BLUE)
+	var title := UI.label(Shell.t("Notebook"), 32, UI.hand_b, UI.BLUE)
 	var style := UI.box(UI.PAPER, 16, 6)
 	style.border_width_top = 12
 	style.border_color = Color("22345a")
@@ -1479,13 +1481,13 @@ func open_notebook(tab: String) -> void:
 		if id == "words":
 			var list := words()
 			if list.is_empty():
-				body.add_child(UI.label("Nothing here yet. Every paraphrase, linking word and grammar trap you meet in a case is saved here automatically.", 18, UI.serif_i, UI.SOFT))
+				body.add_child(UI.label(Shell.t("Nothing here yet. Every paraphrase, linking word and grammar trap you meet in a case is saved here automatically."), 18, UI.serif_i, UI.SOFT))
 			for g in WORD_GROUPS:
 				var items := list.filter(func(x: Dictionary) -> bool: return x.t == g[0])
 				if items.is_empty():
 					continue
-				body.add_child(UI.tag("%s  %d" % [g[1], items.size()], UI.RED, 15))
-				body.add_child(UI.label(g[2], 15, UI.serif_i, UI.SOFT))
+				body.add_child(UI.tag("%s  %d" % [Shell.t(g[1]), items.size()], UI.RED, 15))
+				body.add_child(UI.label(Shell.t(g[2]), 15, UI.serif_i, UI.SOFT))
 				for it in items:
 					var row := UI.vbox([UI.label(it.a, 18, UI.serif_b), UI.label("→ " + it.b, 19, UI.hand, UI.BLUE)], 0)
 					if it.get("n", "") != "":
@@ -1494,20 +1496,20 @@ func open_notebook(tab: String) -> void:
 					body.add_child(UI.rule())
 		elif id == "board":
 			if state.evidence.is_empty():
-				body.add_child(UI.label("The board is empty. Evidence is pinned here as you find it.", 18, UI.serif_i, UI.SOFT))
+				body.add_child(UI.label(Shell.t("The board is empty. Evidence is pinned here as you find it."), 18, UI.serif_i, UI.SOFT))
 			for eid in state.evidence:
 				body.add_child(scenes.evidence_card(card(eid), false))
 			for did in state.deductions:
 				body.add_child(scenes.deduction_card(scenes.deduction(did)))
 		else:
 			if state.facts.is_empty():
-				body.add_child(UI.label("No notes yet. Facts appear here as you find them.", 18, UI.serif_i, UI.SOFT))
+				body.add_child(UI.label(Shell.t("No notes yet. Facts appear here as you find them."), 18, UI.serif_i, UI.SOFT))
 			for f in state.facts:
 				body.add_child(UI.tag(f.title, UI.RED, 14))
 				body.add_child(UI.label(f.text, 20, UI.hand, UI.BLUE))
 				body.add_child(UI.rule(Color("c9d1de")))
 			if in_case:
-				var leave := UI.button("Leave case (progress is saved)", "ghost", "nb-leave")
+				var leave := UI.button(Shell.t("Leave case (progress is saved)"), "ghost", "nb-leave")
 				leave.pressed.connect(func() -> void:
 					save()
 					stop_speech()
@@ -1637,7 +1639,8 @@ func home() -> void:
 	sam.modulate = StageFX.ambient_tint(art.texture)
 	art_mask.add_child(sam)
 	kids.append(art_mask)
-	var title := UI.label("CASE\nFILES", 70, UI.type_b)
+	# In the WeChat build the title is the Chinese name alone, with no English title or subtitle.
+	var title := UI.label(Shell.TITLE if Shell.active else "CASE\nFILES", 60 if Shell.active else 70, UI.cjk_title if Shell.active else UI.type_b)
 	title.add_theme_constant_override("line_spacing", -16)
 	var bar := ColorRect.new()
 	bar.color = UI.RED
@@ -1645,8 +1648,8 @@ func home() -> void:
 	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	var pin := UI.image("res://assets/ui/pin.png", Vector2(26, 28))
 	pin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var label := UI.paper([pin, UI.tag("Unit 9, Language Crimes", UI.SOFT, 14), title, bar,
-		UI.label("Detective work where the evidence is English. Every answer you give does a job in the case.", 19)], 18)
+	var label := UI.paper([pin, null if Shell.active else UI.tag(Shell.t("Unit 9, Language Crimes"), UI.SOFT, 14), title, bar,
+		UI.label(Shell.t("Detective work where the evidence is English. Every answer you give does a job in the case."), 19)], 18)
 	label.resized.connect(func() -> void: label.pivot_offset = label.size * 0.5)
 	label.rotation = -0.018
 	kids.append(label)
@@ -1656,37 +1659,37 @@ func home() -> void:
 			continue
 		var saved = _read_json("user://save_%s.json" % c.id)
 		var resume: bool = saved is Dictionary and saved.get("phase", "briefing") != "briefing"
-		var open := UI.button("Continue the case" if resume else "Open the case", "primary", "open-case")
+		var open := UI.button(Shell.t("Continue the case") if resume else Shell.t("Open the case"), "primary", "open-case")
 		open.pressed.connect(func() -> void: start(c, saved if resume else null))
-		var rows: Array = [UI.tag("Case " + c.number, UI.SOFT, 14), UI.label(c.title, 30, UI.serif_b), UI.label(c.tagline, 19),
-			UI.label("About %d minutes. %s." % [int(c.minutes), ", ".join(c.skills)], 15, UI.type, UI.SOFT), open]
+		var rows: Array = [UI.tag(Shell.t("Case ") + c.number, UI.SOFT, 14), UI.label(c.title, 30, UI.serif_b), UI.label(c.tagline, 19),
+			UI.label(Shell.t("About %d minutes. %s.") % [int(c.minutes), ("、" if Shell.active else ", ").join(c.skills.map(func(x: String) -> String: return Shell.t(x)))], 15, UI.type, UI.SOFT), open]
 		if resume:
-			var again := UI.button("Start again from the beginning", "ghost", "restart-case")
+			var again := UI.button(Shell.t("Start again from the beginning"), "ghost", "restart-case")
 			again.pressed.connect(func() -> void: start(c, null))
 			rows.append(again)
 		kids.append(UI.panel(UI.box(UI.MANILA, 18, 8, 2, Color("8a6a35"), 7), [UI.vbox(rows, 8)]))
-	var check := UI.button("Sound check", "ghost", "sound-check")
+	var check := UI.button(Shell.t("Sound check"), "ghost", "sound-check")
 	check.pressed.connect(sound_check)
-	var bank := UI.button("My word bank", "ghost", "word-bank")
+	var bank := UI.button(Shell.t("My word bank"), "ghost", "word-bank")
 	bank.pressed.connect(func() -> void: open_notebook("words"))
 	kids.append(UI.hbox([check, bank], 8))
 	var snd := UI.button("", "ghost", "toggle-sound")
-	snd.text = "Sound effects: " + ("on" if sound_on else "off")
+	snd.text = Shell.t("Sound effects: ") + (Shell.t("on" if sound_on else Shell.t("off")))
 	snd.pressed.connect(func() -> void:
 		sound_on = not sound_on
 		_write_json("user://prefs.json", {"sound": sound_on, "shake": shake_on})
-		snd.text = "Sound effects: " + ("on" if sound_on else "off")
+		snd.text = Shell.t("Sound effects: ") + (Shell.t("on" if sound_on else Shell.t("off")))
 		sfx("good"))
 	kids.append(snd)
 	var shk := UI.button("", "ghost", "toggle-shake")
-	shk.text = "Screen shake: " + ("on" if shake_on else "off")
+	shk.text = Shell.t("Screen shake: ") + (Shell.t("on" if shake_on else Shell.t("off")))
 	shk.pressed.connect(func() -> void:
 		shake_on = not shake_on
 		_write_json("user://prefs.json", {"sound": sound_on, "shake": shake_on})
-		shk.text = "Screen shake: " + ("on" if shake_on else "off")
+		shk.text = Shell.t("Screen shake: ") + (Shell.t("on" if shake_on else Shell.t("off")))
 		shake(0.4))
 	kids.append(shk)
-	var note := UI.label("Calls and radio messages are spoken aloud. Turn your sound on, or use headphones.", 15, UI.serif_i, UI.SOFT)
+	var note := UI.label(Shell.t("Calls and radio messages are spoken aloud. Turn your sound on, or use headphones."), 15, UI.serif_i, UI.SOFT)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	kids.append(note)
 	_clear(work)
@@ -1696,10 +1699,10 @@ func home() -> void:
 
 func sound_check() -> void:
 	sfx("ring")
-	toast("Playing a test message…", "")
+	toast(Shell.t("Playing a test message…"), "")
 	var c = _read_json(CASES[0])
 	var ok := await speak([c.get("soundCheck", "This is a sound check.")], {"prefer": "female"}, Callable(), [c.get("soundCheckAudio", "")])
-	toast("If you heard a voice, you’re ready." if ok else "No voice found on this device. Calls will be shown as text instead.", "" if ok else "bad")
+	toast(Shell.t("If you heard a voice, you’re ready.") if ok else Shell.t("No voice found on this device. Calls will be shown as text instead."), "" if ok else "bad")
 
 
 func start(c: Dictionary, saved: Variant) -> void:

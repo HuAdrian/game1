@@ -94,7 +94,7 @@ func deduction(id: String) -> Dictionary:
 func deduction_card(d: Dictionary) -> PanelContainer:
 	var strong: bool = d.get("strong", false)
 	var p := UI.panel(UI.box(UI.RED_SOFT if strong else UI.BLUE_SOFT, 10, 3, 3, UI.RED if strong else UI.BLUE, 6),
-		[UI.vbox([UI.tag("Deduction", UI.RED if strong else UI.BLUE, 11), UI.label(d.title, 20, UI.serif_b), UI.label(d.text, 16)], 2)])
+		[UI.vbox([UI.tag(Shell.t("Deduction"), UI.RED if strong else UI.BLUE, 11), UI.label(d.title, 20, UI.serif_b), UI.label(d.text, 16)], 2)])
 	return p
 
 
@@ -186,7 +186,7 @@ func _choose_fix(prompt: String, options: Array, on_wrong: Callable, allow_back 
 			st.busy = false)
 		kids.append(row)
 	if allow_back:
-		var back := UI.button("Leave this sentence", "ghost", "opt-back")
+		var back := UI.button(Shell.t("Leave this sentence"), "ghost", "opt-back")
 		back.pressed.connect(func() -> void: w.done.emit(false))
 		kids.append(back)
 	g.set_tray(kids)
@@ -204,7 +204,7 @@ func _make_tape(label: String, who: String) -> Dictionary:
 		r.pivot_offset = Vector2(18, 18)
 		r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		reels.append(r)
-	var status := UI.label("Plays once only", 13, UI.type, Color("f0b9b2"))
+	var status := UI.label(Shell.t("Plays once only"), 13, UI.type, Color("f0b9b2"))
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
 	bar.custom_minimum_size = Vector2(0, 5)
@@ -214,7 +214,7 @@ func _make_tape(label: String, who: String) -> Dictionary:
 	var sub := UI.label(who, 13, UI.type, Color(UI.PAPER2, 0.75))
 	sub.autowrap_mode = TextServer.AUTOWRAP_OFF
 	sub.clip_text = true
-	var play := UI.button("Play", "danger", "tape-play")
+	var play := UI.button(Shell.t("Play"), "danger", "tape-play")
 	play.custom_minimum_size = Vector2(104, 56)
 	play.size_flags_horizontal = Control.SIZE_SHRINK_END
 	var panel := UI.panel(UI.box(Color("22345a"), 12, 10, 2, Color("16213a"), 8), [UI.hbox([reels[0], reels[1], UI.vbox([name, sub, bar, status], 2), play], 8)])
@@ -224,7 +224,7 @@ func _make_tape(label: String, who: String) -> Dictionary:
 ## Plays a script through the tape. If the device has no voice, shows the transcript to read once.
 func _play_tape(tape: Dictionary, lines: Array, speaker: String, clips: Array = []) -> void:
 	var cast: Dictionary = g.data.cast[speaker]
-	tape.status.text = "Playing…"
+	tape.status.text = Shell.t("Playing…")
 	g.show_actor(speaker, "neutral", "right")
 	var spin: Tween = g.create_tween().set_loops()
 	spin.tween_method(func(a: float) -> void:
@@ -235,12 +235,12 @@ func _play_tape(tape: Dictionary, lines: Array, speaker: String, clips: Array = 
 		g.react(speaker, "nod"), clips)
 	spin.kill()
 	if not ok:
-		tape.status.text = "No voice on this device"
+		tape.status.text = Shell.t("No voice on this device")
 		var w := Main.Wait.new()
-		var kids: Array = [UI.label("This device has no speech voice, so here is the transcript instead. Read it once, then put it away.", 15, UI.type_b, UI.RED)]
+		var kids: Array = [UI.label(Shell.t("This device has no speech voice, so here is the transcript instead. Read it once, then put it away."), 15, UI.type_b, UI.RED)]
 		for l in lines:
 			kids.append(UI.label(l, 17, UI.type))
-		var b := UI.button("I’ve read it. Put it away", "paper", "transcript-done")
+		var b := UI.button(Shell.t("I’ve read it. Put it away"), "paper", "transcript-done")
 		b.pressed.connect(func() -> void: w.done.emit(true))
 		kids.append(b)
 		var box := UI.panel(UI.box(UI.PAPER, 12, 8, 2, UI.RED), [UI.vbox(kids, 6)])
@@ -250,7 +250,7 @@ func _play_tape(tape: Dictionary, lines: Array, speaker: String, clips: Array = 
 		await w.done
 		box.queue_free()
 	tape.bar.value = 100.0
-	tape.status.text = "Tape finished"
+	tape.status.text = Shell.t("Tape finished")
 	g.hide_actor(speaker)
 
 
@@ -318,18 +318,18 @@ func hub() -> String:
 				locked = true
 		if not done:
 			open_cost += int(l.cost)
-		var cost := UI.label("%d min" % int(l.cost), 20, UI.type_b, UI.RED)
+		var cost := UI.label(Shell.t("%d min") % int(l.cost), 20, UI.type_b, UI.RED)
 		cost.autowrap_mode = TextServer.AUTOWRAP_OFF
 		cost.size_flags_horizontal = Control.SIZE_SHRINK_END
 		var status := ""
 		if done:
-			status = hubd.doneTag
+			status = Shell.t(hubd.doneTag)
 		elif locked:
-			status = l.get("locked", "Locked")
+			status = Shell.t(l.get("locked", "Locked"))
 		elif l.get("optional", false):
-			status = hubd.optionalTag
+			status = Shell.t(hubd.optionalTag)
 		var title := UI.label(sc.title, 24, UI.serif_b)
-		var rows: Array = [UI.hbox([title, cost if not done else null], 6), UI.label(l.teaser, 17), UI.label((sc.skill + ("   " + status if status != "" else "")).to_upper(), 12, UI.type_b, UI.RED if status != "" and not done else UI.SOFT)]
+		var rows: Array = [UI.hbox([title, cost if not done else null], 6), UI.label(l.teaser, 17), UI.label((Shell.t(sc.skill) + ("   " + status if status != "" else "")).to_upper(), 12, UI.type_b, UI.RED if status != "" and not done else UI.SOFT)]
 		var card := UI.panel(UI.box(UI.PAPER if not (done or locked) else Color(UI.PAPER2, 0.75), 12, 4, 2, UI.INK if not (done or locked) else UI.RULE, 0 if done or locked else 6), [UI.vbox(rows, 3)])
 		if done:
 			PenMark.draw_on(card, "tick", UI.BLUE)
@@ -340,10 +340,10 @@ func hub() -> String:
 			var id: String = l.id
 			UI.tappable(card, "lead-" + id, func() -> void: w.done.emit(id))
 		kids.append(card)
-	var info := "%s left before the curtain. The leads still open would take %d minutes." % [("%d minutes" % left) if left > 0 else "No time", open_cost]
+	var info: String = (Shell.t("%s left before the curtain. The leads still open would take %d minutes.") % [Shell.t("%d minutes") % left, open_cost]) if left > 0 else (Shell.t("No time left before the curtain. The leads still open would take %d minutes.") % open_cost)
 	g.set_head([UI.panel(UI.box(Color(UI.MANILA, 0.95), 10, 6, 2, UI.INK), [UI.label(info, 16, UI.type_b)])])
 	g.set_work(kids)
-	var leave := UI.button(hubd.leave, "danger", "hub-leave")
+	var leave := UI.button(Shell.t(hubd.leave), "danger", "hub-leave")
 	leave.disabled = g.state.done.is_empty()
 	leave.pressed.connect(func() -> void: w.done.emit(""))
 	g.set_tray([leave])
@@ -354,7 +354,7 @@ func hub() -> String:
 		var pick: String = await w.done
 		if pick != "":
 			return pick
-		if open_cost == 0 or await g.confirm("Build the case?", hubd.leaveConfirm, "Build the case", "Keep investigating"):
+		if open_cost == 0 or await g.confirm(Shell.t("Build the case?"), Shell.t(hubd.leaveConfirm), Shell.t("Build the case"), Shell.t("Keep investigating")):
 			return ""
 	return ""
 
@@ -464,7 +464,7 @@ func _wiretap_round(sc: Dictionary, round_id: String, speaker: String, script: A
 	var audio: Array = _round_audio(sc, round_id)
 	var played_key: String = "%s.%s.played" % [sc.id, round_id]
 	var st := {"played": g.flag(played_key) != null, "busy": false}
-	var tape := _make_tape("Voicemail" if round_id == "first" else "Phone call", "%s, %s" % [cast.name, cast.role])
+	var tape := _make_tape(Shell.t("Voicemail") if round_id == "first" else Shell.t("Phone call"), "%s, %s" % [cast.name, cast.role])
 	g.fields.clear()
 	var rows: Array = [UI.label(str(sc.form.title).to_upper(), 24, UI.type_b), UI.tag(sc.form.sub, UI.SOFT, 12)]
 	for gv in sc.form.given:
@@ -494,7 +494,7 @@ func _wiretap_round(sc: Dictionary, round_id: String, speaker: String, script: A
 			mk.text = "ok"
 		rows.append(UI.hbox([lab2, pre, le, mk], 8))
 	var page := UI.paper(rows, 16)
-	var submit := UI.button("Hand notes to Sam", "primary", "submit-notes")
+	var submit := UI.button(Shell.t("Hand notes to Sam"), "primary", "submit-notes")
 	submit.disabled = not st.played
 	var arm_hint := func() -> void:
 		g.set_hint(func() -> bool:
@@ -526,16 +526,16 @@ func _wiretap_round(sc: Dictionary, round_id: String, speaker: String, script: A
 		await _play_tape(tape, script, speaker, audio)
 		g.sfx("clunk")
 		st.busy = false
-		tape.play.text = "Played"
+		tape.play.text = Shell.t("Played")
 		submit.disabled = false
 		arm_hint.call())
 	if st.played:
 		tape.play.disabled = true
-		tape.play.text = "Played"
-		tape.status.text = "Tape finished"
+		tape.play.text = Shell.t("Played")
+		tape.status.text = Shell.t("Tape finished")
 		arm_hint.call()
 	else:
-		g.set_hint(Callable(), "Play the tape first. Sam can’t wind back what you haven’t heard.")
+		g.set_hint(Callable(), Shell.t("Play the tape first. Sam can’t wind back what you haven’t heard."))
 	g.set_prop(tape.panel)
 	g.set_work([page])
 	g.set_tray([submit])
@@ -589,16 +589,16 @@ func _tail_round(sc: Dictionary, round_id: String, script: Array, hint_lines: Ar
 	var audio: Array = _round_audio(sc, round_id)
 	var played_key: String = "%s.%s.played" % [sc.id, round_id]
 	var st := {"played": g.flag(played_key) != null, "busy": false, "pick": null}
-	var tape := _make_tape("Police radio", "%s, %s" % [cast.name, cast.role])
+	var tape := _make_tape(Shell.t("Police radio"), "%s, %s" % [cast.name, cast.role])
 	var map := MapView.new()
 	map.setup(sc.map, g.sfx)
 	map.dead = tried.duplicate()
-	var go := UI.button("Tap a building on the map", "primary", "send-team")
+	var go := UI.button(Shell.t("Tap a building on the map"), "primary", "send-team")
 	go.disabled = true
 	map.picked.connect(func(b: Dictionary) -> void:
 		st.pick = b
 		g.sfx("pin")
-		go.text = "Send the team to building %s" % b.id
+		go.text = Shell.t("Send the team to building %s") % b.id
 		go.disabled = not st.played or st.busy)
 	var arm_hint := func() -> void:
 		g.set_hint(func() -> bool:
@@ -621,23 +621,23 @@ func _tail_round(sc: Dictionary, round_id: String, script: Array, hint_lines: Ar
 		await _play_tape(tape, script, sc.speaker, audio)
 		g.sfx("static")
 		st.busy = false
-		tape.play.text = "Played"
+		tape.play.text = Shell.t("Played")
 		if st.pick != null:
 			go.disabled = false
 		arm_hint.call())
 	if st.played:
 		tape.play.disabled = true
-		tape.play.text = "Played"
-		tape.status.text = "Tape finished"
+		tape.play.text = Shell.t("Played")
+		tape.status.text = Shell.t("Tape finished")
 		arm_hint.call()
 	else:
-		g.set_hint(Callable(), "Play the radio first. Then Sam can help.")
-	var back := UI.button("Back to the hall", "ghost", "map-reset")
+		g.set_hint(Callable(), Shell.t("Play the radio first. Then Sam can help."))
+	var back := UI.button(Shell.t("Back to the hall"), "ghost", "map-reset")
 	back.custom_minimum_size = Vector2(170, 44)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_END
 	back.add_theme_font_size_override("font_size", 14)
 	back.pressed.connect(map.reset)
-	var help := UI.hbox([UI.label("Tap the corners to walk the marker along his route.", 15, UI.serif_i, UI.SOFT), back], 8)
+	var help := UI.hbox([UI.label(Shell.t("Tap the corners to walk the marker along his route."), 15, UI.serif_i, UI.SOFT), back], 8)
 	g.set_prop(tape.panel)
 	g.set_work([UI.paper([map, help], 8)])
 	g.set_tray([go])
@@ -675,9 +675,9 @@ func interrogation(sc: Dictionary) -> void:
 	var total_comp := int(sc.get("composure", 5))
 
 	# meters stand in the scene, under the suspect
-	var comp_label := UI.tag("His composure", UI.INK, 12)
+	var comp_label := UI.tag(Shell.t("His composure"), UI.INK, 12)
 	var comp_box := UI.hbox([], 4)
-	var cred_label := UI.tag("Your credibility", UI.INK, 12)
+	var cred_label := UI.tag(Shell.t("Your credibility"), UI.INK, 12)
 	cred_label.size_flags_horizontal = Control.SIZE_FILL
 	var cred_box := UI.hbox([], 4)
 	cred_box.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -686,7 +686,7 @@ func interrogation(sc: Dictionary) -> void:
 	var draw_meters := func() -> void:
 		_pips(comp_box, total_comp, total_comp - st.hits, UI.RED)
 		_pips(cred_box, int(sc.get("credibility", 3)), st.cred, UI.BLUE, true)
-		comp_label.text = ("His composure: " + ["steady", "shaken", "sweating", "cracking", "gone", "gone"][min(st.hits, 5)]).to_upper()
+		comp_label.text = (Shell.t("His composure: ") + Shell.t(["steady", "shaken", "sweating", "cracking", "gone", "gone"][min(st.hits, 5)])).to_upper()
 		meters.pivot_offset = meters.size * 0.5
 		var tw := meters.create_tween()
 		tw.tween_property(meters, "scale", Vector2(1.06, 1.06), 0.08)
@@ -705,7 +705,7 @@ func interrogation(sc: Dictionary) -> void:
 		if st.armed.is_valid():
 			st.armed.call(id)
 		else:
-			g.toast("First decide: True, Lie or Not Given.", ""))
+			g.toast(Shell.t("First decide: True, Lie or Not Given."), ""))
 	g.set_work([doc.paper])
 
 	var face := func() -> void:
@@ -724,7 +724,7 @@ func interrogation(sc: Dictionary) -> void:
 		g.sfx("snap")
 		g.set_mood(who, "smug")
 		g.react(who, "hop")
-		g.toast("Credibility lost", "bad")
+		g.toast(Shell.t("Credibility lost"), "bad")
 
 	var show_statement := func(label: String, text: String) -> void:
 		quote_name.text = ("%s   %s" % [cast.name, label]).to_upper()
@@ -739,10 +739,10 @@ func interrogation(sc: Dictionary) -> void:
 		var w := Main.Wait.new()
 		var verdicts := func() -> void:
 			st.armed = Callable()
-			var present := UI.button("Present an evidence card", "paper", "present")
+			var present := UI.button(Shell.t("Present an evidence card"), "paper", "present")
 			present.pressed.connect(func() -> void: w.done.emit({"verdict": "CARD"}))
 			if card_only:
-				var pass_b := UI.button("Let it pass", "ghost", "pass")
+				var pass_b := UI.button(Shell.t("Let it pass"), "ghost", "pass")
 				pass_b.pressed.connect(func() -> void: w.done.emit({"verdict": "PASS"}))
 				g.set_tray([present, pass_b])
 				return
@@ -751,8 +751,8 @@ func interrogation(sc: Dictionary) -> void:
 			var n := UI.button("NOT GIVEN", "ghost", "v-NG")
 			n.pressed.connect(func() -> void: w.done.emit({"verdict": "NG"}))
 			var prove := func(v: String) -> void:
-				var msg := UI.label("Tap the line that proves he’s lying." if v == "F" else "Tap the line that proves it’s true.", 17, UI.type_b, UI.RED if v == "F" else UI.BLUE)
-				var back := UI.button("Back", "ghost", "v-back")
+				var msg := UI.label(Shell.t("Tap the line that proves he’s lying.") if v == "F" else Shell.t("Tap the line that proves it’s true."), 17, UI.type_b, UI.RED if v == "F" else UI.BLUE)
+				var back := UI.button(Shell.t("Back"), "ghost", "v-back")
 				back.custom_minimum_size = Vector2(90, 48)
 				back.size_flags_horizontal = Control.SIZE_SHRINK_END
 				back.pressed.connect(func() -> void: w.done.emit({"verdict": "BACK"}))
@@ -773,7 +773,7 @@ func interrogation(sc: Dictionary) -> void:
 					await g.say(sc.cardLines.none)
 					continue
 				g.set_tray([])
-				var id: String = await g.pick_card("Which card do you put on the table?", g.state.evidence)
+				var id: String = await g.pick_card(Shell.t("Which card do you put on the table?"), g.state.evidence)
 				if id == "":
 					continue
 				ans["card"] = id
@@ -798,7 +798,7 @@ func interrogation(sc: Dictionary) -> void:
 		var attempt := 0
 		while attempt < 2 and not solved and not st.ended:
 			var proof: Array = s.harderProof if attempt == 1 and s.has("harderProof") else s.proof
-			show_statement.call("statement %d of %d%s" % [n + 1, sc.statements.size(), ", again" if attempt == 1 else ""], s.harder if attempt == 1 else s.text)
+			show_statement.call(Shell.t("statement %d of %d%s") % [n + 1, sc.statements.size(), Shell.t(", again") if attempt == 1 else ""], s.harder if attempt == 1 else s.text)
 			g.set_hint(func() -> bool:
 				_flash_section(doc.sections[s.hint.section])
 				await g.say([s.hint.text])
@@ -872,7 +872,7 @@ func interrogation(sc: Dictionary) -> void:
 			if st.ended:
 				break
 			var cs: Dictionary = sc.cardStatements[k]
-			show_statement.call("and another thing", cs.text)
+			show_statement.call(Shell.t("and another thing"), cs.text)
 			g.set_hint(func() -> bool:
 				await g.say([cs.hint])
 				return true)
@@ -965,7 +965,7 @@ func chart(sc: Dictionary) -> void:
 			g.lose(cost)
 			await g.say([s.wrong]))
 	g.set_work([chart_paper, UI.paper(kids, 14)])
-	g.set_tray([_center(UI.label("Tap the sentence that gets the chart wrong.", 17, UI.type_b))])
+	g.set_tray([_center(UI.label(Shell.t("Tap the sentence that gets the chart wrong."), 17, UI.type_b))])
 	g.set_hint(func() -> bool:
 		var hl: Array = []
 		for i in sc.chart.hintBars:
@@ -987,7 +987,7 @@ func chart(sc: Dictionary) -> void:
 	g.set_hint(func() -> bool:
 		await g.say([sc.rewrite.hint])
 		return true)
-	await _choose_fix(sc.rewrite.prompt, sc.rewrite.options, func(o: Dictionary) -> void:
+	await _choose_fix(Shell.t(sc.rewrite.prompt), sc.rewrite.options, func(o: Dictionary) -> void:
 		fix.first = false
 		g.lose(cost)
 		await g.say([o.wrong]))
@@ -1029,7 +1029,7 @@ func forgery(sc: Dictionary) -> void:
 	kids.append(UI.label(L.greeting, 20))
 	var search := func() -> void:
 		# the tray is rebuilt each time, so the counter is a fresh label
-		g.set_tray([_center(UI.label("Tap a sentence Mira would never write.\nMistakes found: %d of %d" % [st.found.size(), errors.size()], 17, UI.type_b))])
+		g.set_tray([_center(UI.label(Shell.t("Tap a sentence Mira would never write.\nMistakes found: %d of %d") % [st.found.size(), errors.size()], 17, UI.type_b))])
 		g.set_hint(func() -> bool:
 			for i in L.paragraphs.size():
 				for s in L.paragraphs[i]:
@@ -1067,7 +1067,7 @@ func forgery(sc: Dictionary) -> void:
 				g.set_hint(func() -> bool:
 					await g.say([sc.fixHint])
 					return true)
-				var fixed: bool = await _choose_fix(sc.fixPrompt, s.error.options, func(o: Dictionary) -> void:
+				var fixed: bool = await _choose_fix(Shell.t(sc.fixPrompt), s.error.options, func(o: Dictionary) -> void:
 					st.miss[s.id] = true
 					g.lose(cost)
 					await g.say([o.wrong]), true)
@@ -1176,7 +1176,7 @@ func torn(sc: Dictionary) -> void:
 				await g.say([p.why[o]])
 				st.busy = false)
 			row.add_child(b)
-		g.set_tray([_center(UI.label("Which word mends this piece?", 16, UI.type, UI.SOFT)), row])
+		g.set_tray([_center(UI.label(Shell.t("Which word mends this piece?"), 16, UI.type, UI.SOFT)), row])
 		g.set_hint(func() -> bool:
 			g.ensure_visible(strips[p.id])
 			await g.say([p.hint])
@@ -1232,10 +1232,10 @@ func scan(sc: Dictionary) -> void:
 	var q_tag := UI.tag("", UI.SOFT, 13)
 	g.set_head([UI.panel(qs, [UI.vbox([q_tag, q_text], 2)])])
 	g.set_work([doc.paper])
-	g.set_tray([_center(UI.label("Tap the line that answers Sam’s question.", 17, UI.type_b))])
+	g.set_tray([_center(UI.label(Shell.t("Tap the line that answers Sam’s question."), 17, UI.type_b))])
 	for n in sc.questions.size():
 		var q: Dictionary = sc.questions[n]
-		q_tag.text = ("Sam asks   %d of %d" % [n + 1, sc.questions.size()]).to_upper()
+		q_tag.text = (Shell.t("Sam asks   %d of %d") % [n + 1, sc.questions.size()]).to_upper()
 		q_text.text = q.text
 		g.set_hint(func() -> bool:
 			await g.say([q.hint])
@@ -1286,13 +1286,13 @@ func board() -> void:
 	var cards := {}
 	var ded_box := UI.vbox([], 8)
 	var count := UI.tag("", UI.INK, 13)
-	var connect := UI.button("Tap two cards to connect them", "primary", "connect")
+	var connect := UI.button(Shell.t("Tap two cards to connect them"), "primary", "connect")
 	connect.disabled = true
-	var finish := UI.button(bd.done, "danger", "board-done")
+	var finish := UI.button(Shell.t(bd.done), "danger", "board-done")
 	var refresh := func() -> void:
-		count.text = "DEDUCTIONS MADE: %d" % g.state.deductions.size()
+		count.text = Shell.t("DEDUCTIONS MADE: %d") % g.state.deductions.size()
 		connect.disabled = st.sel.size() != 2
-		connect.text = "Connect these two cards" if st.sel.size() == 2 else "Tap two cards to connect them"
+		connect.text = Shell.t("Connect these two cards") if st.sel.size() == 2 else Shell.t("Tap two cards to connect them")
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1314,7 +1314,7 @@ func board() -> void:
 				_select(c, true)
 				g.sfx("pin")
 			else:
-				g.toast("Two cards at a time. Tap one to put it back.", "")
+				g.toast(Shell.t("Two cards at a time. Tap one to put it back."), "")
 			refresh.call())
 	for did in g.state.deductions:
 		ded_box.add_child(deduction_card(deduction(did)))
@@ -1401,7 +1401,7 @@ func board() -> void:
 	while true:
 		await done.done
 		var n: int = g.state.deductions.size()
-		if await g.confirm("Make the accusation?", "You have made %d deduction%s. You can’t come back to the board." % [n, "" if n == 1 else "s"], "Accuse", "Keep working"):
+		if await g.confirm(Shell.t("Make the accusation?"), (Shell.t("You have made %d deductions. You can’t come back to the board.") % n) if Shell.active else ("You have made %d deduction%s. You can’t come back to the board." % [n, "" if n == 1 else "s"]), Shell.t("Accuse"), Shell.t("Keep working")):
 			break
 	g.set_hint()
 	g.set_head([])
@@ -1418,17 +1418,17 @@ func accusation() -> void:
 	g.show_actor("sam")
 	await g.play(sc.intro)
 	var st := {"suspect": null, "proofs": [], "need": 3}
-	var go := UI.button("Choose a suspect", "danger", "arrest")
+	var go := UI.button(Shell.t("Choose a suspect"), "danger", "arrest")
 	go.disabled = true
 	var sus_cards := {}
 	var refresh := func() -> void:
 		go.disabled = st.suspect == null or st.proofs.size() != st.need
 		if st.suspect == null:
-			go.text = "Choose a suspect"
+			go.text = Shell.t("Choose a suspect")
 		elif st.proofs.size() < st.need:
-			go.text = "Choose %d more" % (st.need - st.proofs.size())
+			go.text = Shell.t("Choose %d more") % (st.need - st.proofs.size())
 		else:
-			go.text = "Arrest %s" % st.suspect.name
+			go.text = Shell.t("Arrest %s") % st.suspect.name
 	var sus_row := UI.hbox([], 8)
 	for s in sc.suspects:
 		var face := UI.image("res://assets/characters/%s_neutral.png" % s.id, Vector2(0, 96))
@@ -1468,10 +1468,10 @@ func accusation() -> void:
 				_select(p.node, true, UI.INK)
 				g.sfx("pin")
 			else:
-				g.toast("Three proofs only. Tap one to put it back.", "")
+				g.toast(Shell.t("Three proofs only. Tap one to put it back."), "")
 			refresh.call())
-	var h1 := UI.panel(UI.box(UI.PAPER, 8, 2), [UI.tag("Who did it?", UI.INK, 15)])
-	var h2 := UI.panel(UI.box(UI.PAPER, 8, 2), [UI.vbox([UI.tag("Which three prove it?", UI.INK, 15), UI.label(sc.proofNote, 16, UI.serif_i, UI.SOFT)], 2)])
+	var h1 := UI.panel(UI.box(UI.PAPER, 8, 2), [UI.tag(Shell.t("Who did it?"), UI.INK, 15)])
+	var h2 := UI.panel(UI.box(UI.PAPER, 8, 2), [UI.vbox([UI.tag(Shell.t("Which three prove it?"), UI.INK, 15), UI.label(Shell.t(sc.proofNote), 16, UI.serif_i, UI.SOFT)], 2)])
 	g.set_work([h1, sus_row, h2, list])
 	g.set_tray([go])
 	g.set_hint(func() -> bool:
@@ -1550,18 +1550,18 @@ func report() -> void:
 	var mine := {"ending": end.verdict, "L": bands.L.band, "R": bands.R.band, "W": bands.W.band, "hints": hints_used, "time": int(g.state.time)}
 	var code: String = g.encode_result(mine)
 	var show := func(b: float) -> String: return "–" if b < 0.0 else "%.1f" % b
-	var stamp_l := UI.label(str(sc.endingNames[end.verdict]).to_upper(), 15, UI.type_b, UI.RED if end.verdict == "C" else UI.BLUE)
+	var stamp_l := UI.label(Shell.t(str(sc.endingNames[end.verdict])).to_upper(), 15, UI.type_b, UI.RED if end.verdict == "C" else UI.BLUE)
 	stamp_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var kids: Array = [UI.hbox([UI.tag("Unit 9, Case " + g.data.number, UI.SOFT, 12), stamp_l]), UI.label("Case Report", 30, UI.serif_b), UI.label(g.data.title, 19, UI.serif_i), UI.rule(UI.INK)]
+	var kids: Array = [UI.hbox([UI.tag(Shell.t("Unit 9, Case ") + g.data.number, UI.SOFT, 12), stamp_l]), UI.label(Shell.t("Case Report"), 30, UI.serif_b), UI.label(g.data.title, 19, UI.serif_i), UI.rule(UI.INK)]
 	var leads_done: int = g.state.done.size()
-	for pair in [["Case closed at", g.clock_text_of(g.now())], ["Leads followed", "%d of %d" % [leads_done, g.data.leads.size()]],
-			["Deductions", str(g.state.deductions.size())], ["Hints used", "%d of %d" % [hints_used, int(g.data.hints)]]]:
+	for pair in [[Shell.t("Case closed at"), g.clock_text_of(g.now())], [Shell.t("Leads followed"), Shell.t("%d of %d") % [leads_done, g.data.leads.size()]],
+			[Shell.t("Deductions"), str(g.state.deductions.size())], [Shell.t("Hints used"), Shell.t("%d of %d") % [hints_used, int(g.data.hints)]]]:
 		var k2 := UI.tag(pair[0], UI.SOFT, 12)
 		k2.custom_minimum_size = Vector2(150, 0)
 		k2.size_flags_horizontal = Control.SIZE_FILL
 		kids.append(UI.hbox([k2, UI.label(pair[1], 17, UI.type)], 6))
 	kids.append(UI.gap(4))
-	kids.append(UI.tag("Estimated band", UI.RED, 13))
+	kids.append(UI.tag(Shell.t("Estimated band"), UI.RED, 13))
 	var weakest: Dictionary = sc.skills[0]
 	for k in sc.skills:
 		var b: Dictionary = bands[k.key]
@@ -1577,16 +1577,16 @@ func report() -> void:
 		bar.value = 100.0 * b.got / b.total if b.total > 0 else 0.0
 		bar.add_theme_stylebox_override("background", UI.box(UI.PAPER2, 0, 4, 1, UI.RULE))
 		bar.add_theme_stylebox_override("fill", UI.box(UI.INK, 0, 4))
-		kids.append(UI.hbox([UI.label(k.name, 21, UI.serif_b), num]))
+		kids.append(UI.hbox([UI.label(Shell.t(k.name), 21, UI.serif_b), num]))
 		kids.append(bar)
-		kids.append(UI.label(("%d of %d right first time, from %s" % [b.got, b.total, k.from]) if b.total > 0 else "Not tested: you skipped these leads", 14, UI.type, UI.SOFT))
-	kids.append(UI.label("A rough guide from one short case, not an official score. To work on next: %s." % weakest.name, 15, UI.serif_i, UI.SOFT))
+		kids.append(UI.label((Shell.t("%d of %d right first time, from %s") % [b.got, b.total, Shell.t(k.from)]) if b.total > 0 else Shell.t("Not tested: you skipped these leads"), 14, UI.type, UI.SOFT))
+	kids.append(UI.label(Shell.t("A rough guide from one short case, not an official score. To work on next: %s.") % Shell.t(weakest.name), 15, UI.serif_i, UI.SOFT))
 	kids.append(UI.gap(4))
-	kids.append(UI.tag("Result code", UI.RED, 13))
+	kids.append(UI.tag(Shell.t("Result code"), UI.RED, 13))
 	var code_l := UI.label(code, 26, UI.type_b, UI.RED)
 	code_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UI.mark(code_l, "code")
-	var copy := UI.button("Copy", "paper", "copy")
+	var copy := UI.button(Shell.t("Copy"), "paper", "copy")
 	copy.custom_minimum_size = Vector2(96, 48)
 	copy.size_flags_horizontal = Control.SIZE_SHRINK_END
 	copy.pressed.connect(func() -> void:
@@ -1595,34 +1595,34 @@ func report() -> void:
 			JavaScriptBridge.get_interface("window").cfCopy(code)
 		elif g.mini:
 			g.sdk.set_clipboard(code)
-		copy.text = "Copied")
+		copy.text = Shell.t("Copied"))
 	kids.append(UI.hbox([UI.panel(UI.box(UI.PAPER, 8, 8, 2, UI.RED), [code_l]), copy], 8))
-	kids.append(UI.label("Send it to someone who played this case. Type theirs here to compare.", 15, UI.serif_i, UI.SOFT))
+	kids.append(UI.label(Shell.t("Send it to someone who played this case. Type theirs here to compare."), 15, UI.serif_i, UI.SOFT))
 	g.fields.clear()
-	var entry: LineEdit = g.add_field("friend", "Friend’s result code", true)
-	var cmp := UI.button("Compare", "paper", "compare")
+	var entry: LineEdit = g.add_field("friend", Shell.t("Friend’s result code"), true)
+	var cmp := UI.button(Shell.t("Compare"), "paper", "compare")
 	cmp.custom_minimum_size = Vector2(120, 48)
 	cmp.size_flags_horizontal = Control.SIZE_SHRINK_END
 	var out := UI.vbox([], 6)
 	UI.mark(out, "compare-out")
 	var col := func(r: Dictionary, who: String) -> Control:
-		return UI.panel(UI.box(UI.PAPER, 8, 6, 1, UI.RULE), [UI.vbox([UI.tag(who, UI.RED, 12), UI.label(sc.endingNames[r.ending], 16, UI.type_b),
-			UI.label("L %s  R %s  W %s" % [show.call(r.L), show.call(r.R), show.call(r.W)], 15, UI.type),
-			UI.label("Closed at " + g.clock_text_of(g.to_min(g.data.clock.start) + int(r.time)), 15, UI.type), UI.label("%d hint%s" % [int(r.hints), "" if int(r.hints) == 1 else "s"], 15, UI.type)], 1)])
+		return UI.panel(UI.box(UI.PAPER, 8, 6, 1, UI.RULE), [UI.vbox([UI.tag(who, UI.RED, 12), UI.label(Shell.t(sc.endingNames[r.ending]), 16, UI.type_b),
+			UI.label(Shell.t("L %s  R %s  W %s") % [show.call(r.L), show.call(r.R), show.call(r.W)], 15, UI.type),
+			UI.label(Shell.t("Closed at ") + g.clock_text_of(g.to_min(g.data.clock.start) + int(r.time)), 15, UI.type), UI.label((Shell.t("%d hints") % int(r.hints)) if Shell.active else ("%d hint%s" % [int(r.hints), "" if int(r.hints) == 1 else "s"]), 15, UI.type)], 1)])
 	cmp.pressed.connect(func() -> void:
 		for c in out.get_children():
 			c.queue_free()
 		var r = g.decode_result(g.field_value("friend"))
 		if r == null:
-			out.add_child(UI.label("That doesn’t look like a result code. Check for a missing letter.", 15, UI.type_b, UI.RED))
+			out.add_child(UI.label(Shell.t("That doesn’t look like a result code. Check for a missing letter."), 15, UI.type_b, UI.RED))
 		elif r.case != g.data.code + g.data.number:
-			out.add_child(UI.label("That code is from a different case.", 15, UI.type_b, UI.RED))
+			out.add_child(UI.label(Shell.t("That code is from a different case."), 15, UI.type_b, UI.RED))
 		else:
-			out.add_child(UI.hbox([col.call(mine, "You"), col.call(r, "Them")], 8))
+			out.add_child(UI.hbox([col.call(mine, Shell.t("You")), col.call(r, Shell.t("Them"))], 8))
 		g.ensure_visible(out))
 	kids.append(UI.hbox([entry, cmp], 8))
 	kids.append(out)
-	var again := UI.button("Play the case again", "primary", "play-again")
+	var again := UI.button(Shell.t("Play the case again"), "primary", "play-again")
 	again.pressed.connect(g.restart)
 	kids.append(again)
 	g.set_work([UI.paper(kids, 18)])
