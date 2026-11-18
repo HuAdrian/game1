@@ -9,11 +9,7 @@ class_name StageFX
 ## bottom edge into whatever lies behind it.
 static func fade_mask(fade: float) -> GradientTexture2D:
 	var g := Gradient.new()
-	g.set_color(0, Color.WHITE)
-	g.set_offset(0, 0.0)
-	g.set_color(1, Color(1, 1, 1, 0))
-	g.set_offset(1, 1.0)
-	g.add_point(1.0 - fade, Color.WHITE)
+	_shape(g, fade)
 	var t := GradientTexture2D.new()
 	t.gradient = g
 	t.width = 4
@@ -25,7 +21,16 @@ static func fade_mask(fade: float) -> GradientTexture2D:
 
 ## Moves the fade of a mask made by fade_mask().
 static func set_fade(t: GradientTexture2D, fade: float) -> void:
-	t.gradient.set_offset(2, clampf(1.0 - fade, 0.0, 1.0))
+	_shape(t.gradient, fade)
+
+
+## Writes all three points in order every time. Moving a single point by index
+## is unsafe: Gradient re-sorts its points, so an index can end up naming the
+## transparent end and drag it into the middle of the picture.
+static func _shape(g: Gradient, fade: float) -> void:
+	var f := clampf(fade, 0.0, 1.0)
+	g.offsets = PackedFloat32Array([0.0, 1.0 - f, 1.0])
+	g.colors = PackedColorArray([Color.WHITE, Color.WHITE, Color(1, 1, 1, 0)])
 
 
 ## A soft radial blob: `inner` colour at the centre, clear at the rim.
