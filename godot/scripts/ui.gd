@@ -25,6 +25,11 @@ static var hand_b: Font
 ## Noto Sans SC subset (GB2312 + Latin + arrows): the mini game host has no system
 ## fonts, so every glyph the Latin fonts lack (typed Chinese, "→") comes from here.
 static var cjk: Font
+## Bold Noto Sans SC, cut down to the characters of the Chinese interface text, so
+## Chinese labels on bold Latin fonts read as bold too.
+static var cjk_b: Font
+## The Chinese title on the home screen, in the heaviest weight.
+static var cjk_title: Font
 
 
 static func init_fonts() -> void:
@@ -37,8 +42,12 @@ static func init_fonts() -> void:
 	hand = load(d + "Kalam-Regular.ttf")
 	hand_b = load(d + "Kalam-Bold.ttf")
 	cjk = load(d + "NotoSansSC-Subset.woff2")
-	for f in [serif, serif_b, serif_i, type, type_b, hand, hand_b]:
+	cjk_b = load(d + "NotoSansSC-Bold-Subset.woff2")
+	cjk_title = load(d + "NotoSansSC-Title-Subset.woff2")
+	for f in [serif, serif_i, type, hand]:
 		f.fallbacks = [cjk]
+	for f in [serif_b, type_b, hand_b]:
+		f.fallbacks = [cjk_b, cjk]
 
 
 static func label(text: String, size := 20, font: Font = null, color := INK) -> Label:
