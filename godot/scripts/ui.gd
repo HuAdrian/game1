@@ -104,9 +104,10 @@ static func box(bg: Color, pad := 14, radius := 4, border := 0, border_color := 
 	s.border_color = border_color
 	s.set_content_margin_all(pad)
 	if shadow > 0:
-		s.shadow_color = Color(0.24, 0.16, 0.04, 0.28)
-		s.shadow_size = shadow
-		s.shadow_offset = Vector2(0, 3)
+		# a warm, deep shadow, as paper casts on a dark wooden desk under a lamp
+		s.shadow_color = Color(0.08, 0.04, 0.01, 0.5)
+		s.shadow_size = shadow + 4
+		s.shadow_offset = Vector2(0, 3 + shadow * 0.35)
 	return s
 
 
