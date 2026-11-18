@@ -83,6 +83,10 @@ var wash: ColorRect         # brief red wash on mistakes and big moments
 var outgoing: Control       # documents sliding off the desk
 var pressure_player: AudioStreamPlayer
 var doc_rise := 0.0         # documents land from slightly below
+var band_mask: GradientTexture2D   # feathers the bottom of the scene into the desk
+var dust: CPUParticles2D
+var ambient := Color.WHITE  # the room's light on the people in it
+var idle_t := 0.0
 var sfx_cache: Dictionary = {}
 var players: Array = []
 var publish_t := 0.0
@@ -104,6 +108,9 @@ func _ready() -> void:
 	if mini:
 		sdk.keyboard_event.connect(_on_keyboard)
 	_build()
+	var drift := place.create_tween().set_loops()
+	drift.tween_property(place, "scale", Vector2(1.06, 1.06), 14.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	drift.tween_property(place, "scale", Vector2(1.01, 1.01), 14.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	voice_player = AudioStreamPlayer.new()
 	add_child(voice_player)
 	pressure_player = AudioStreamPlayer.new()
@@ -129,28 +136,43 @@ func _build() -> void:
 	desk.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	desk.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(desk)
+	# a warm lamp pool on the desk and darker corners, under everything placed on it
+	var lamp := StageFX.rect_image(StageFX.radial(Color(1.0, 0.8, 0.5, 0.22), Vector2(0.5, 0.3), Vector2(1.05, 0.95), 256), true)
+	lamp.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(lamp)
+	var corners := StageFX.rect_image(StageFX.radial(Color(0, 0, 0, 0), Vector2(0.5, 0.45), Vector2(1.15, 1.1), 256))
+	corners.texture.gradient.set_color(1, Color(0.05, 0.025, 0.01, 0.55))
+	corners.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(corners)
 
 	col = Control.new()
 	col.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(col)
 
-	scene_view = Control.new()
-	scene_view.clip_contents = true
-	scene_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The scene is drawn through a mask that fades its bottom edge, so the room
+	# dissolves into the desk instead of ending at a line.
+	band_mask = StageFX.fade_mask(0.22)
+	var band := StageFX.rect_image(band_mask)
+	band.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	band.clip_contents = true
+	scene_view = band
 	col.add_child(scene_view)
 	place = UI.image("")
 	place.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	place.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scene_view.add_child(place)
+	dust = StageFX.dust()
+	scene_view.add_child(dust)
 	actors_layer = Control.new()
 	actors_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	actors_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	scene_view.add_child(actors_layer)
 	vignette = TextureRect.new()
 	var grad := Gradient.new()
-	grad.set_color(0, Color(UI.INK, 0.0))
-	grad.set_color(1, Color(UI.INK, 0.85))
-	grad.add_point(0.55, Color(UI.INK, 0.0))
+	var shade := Color("1c1009")   # warm dark, matching the rendered rooms
+	grad.set_color(0, Color(shade, 0.0))
+	grad.set_color(1, Color(shade, 0.85))
+	grad.add_point(0.55, Color(shade, 0.0))
 	var gt := GradientTexture2D.new()
 	gt.gradient = grad
 	gt.fill = GradientTexture2D.FILL_RADIAL
@@ -161,14 +183,8 @@ func _build() -> void:
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vignette.modulate.a = 0.0
+	vignette.modulate.a = 0.3
 	scene_view.add_child(vignette)
-	var edge := ColorRect.new()
-	edge.color = UI.INK
-	edge.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	edge.offset_top = -4
-	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	scene_view.add_child(edge)
 
 	prop_box = MarginContainer.new()
 	prop_box.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -285,6 +301,13 @@ func _layout() -> void:
 	hud.visible = in_case
 	scene_view.position = Vector2.ZERO
 	scene_view.size = Vector2(w, sh)
+	if sh > 0.0:
+		var fade: float = clamp(46.0 / sh, 0.0, 0.45)
+		if abs(band_mask.gradient.get_offset(2) - (1.0 - fade)) > 0.004:
+			StageFX.set_fade(band_mask, fade)
+	dust.position = Vector2(w * 0.5, sh * 0.5)
+	dust.emission_rect_extents = Vector2(w * 0.5, sh * 0.5)
+	place.pivot_offset = Vector2(w * (0.5 + 0.08 * sin(idle_t * 0.07)), sh * 0.5)
 	hud.position = Vector2.ZERO
 	hud.size = Vector2(w, 0)
 	var hud_h: float = hud.get_combined_minimum_size().y
@@ -300,6 +323,10 @@ func _layout() -> void:
 		a.holder.position = Vector2(x, sh - ah - 2.0)
 		a.holder.size = Vector2(aw, ah)
 		a.holder.pivot_offset = Vector2(aw * 0.5, ah)
+		# a slow breath and a little sway, so nobody stands frozen
+		a.breath.pivot_offset = Vector2(aw * 0.5, ah)
+		a.breath.scale = Vector2(1.0, 1.0 + 0.009 * sin(idle_t * 1.7 + a.phase))
+		a.breath.rotation = 0.006 * sin(idle_t * 0.6 + a.phase)
 		if tension > 0.0 and who == tension_who:
 			# the suspect trembles more as his composure goes
 			a.holder.position.x += sin(shake_t * 3.1 + Time.get_ticks_msec() * 0.031) * 2.6 * tension
@@ -344,6 +371,7 @@ func _process(dt: float) -> void:
 	if trauma > 0.0:
 		trauma = max(0.0, trauma - 1.7 * dt)   # always decays back to rest
 		shake_t += dt * 30.0
+	idle_t += dt
 	_layout()
 	_pressure(dt)
 	if web_page:
@@ -479,7 +507,7 @@ func set_tension(value: float, who := "") -> void:
 	tension = clamp(value, 0.0, 1.0)
 	tension_who = who
 	var tw := vignette.create_tween()
-	tw.tween_property(vignette, "modulate:a", 0.25 + 0.6 * tension if tension > 0.0 else 0.0, 0.5)
+	tw.tween_property(vignette, "modulate:a", 0.3 + 0.55 * tension, 0.5)
 
 
 ## Clock pressure near the deadline, and the heartbeat of an interrogation.
@@ -545,6 +573,9 @@ func set_place(id: String, surface := "desk") -> void:
 	var tex := UI.texture("res://assets/places/%s.png" % id)
 	if tex:
 		place.texture = tex
+		ambient = StageFX.ambient_tint(tex)
+		for who in actors:
+			actors[who].holder.modulate = ambient
 	var st := UI.texture("res://assets/ui/%s.png" % surface)
 	desk.texture = st if st else UI.texture("res://assets/ui/desk.png")
 
@@ -581,15 +612,27 @@ func show_actor(who: String, mood := "neutral", slot := "") -> void:
 			hide_actor(other)
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.modulate = ambient
+	# a soft contact shadow behind the figure grounds it in the room
+	var shadow := StageFX.rect_image(StageFX.radial(Color(0.06, 0.03, 0.01, 0.6), Vector2(0.5, 0.5), Vector2(1.0, 0.5), 64))
+	shadow.anchor_left = -0.05
+	shadow.anchor_right = 1.05
+	shadow.anchor_top = 0.55
+	shadow.anchor_bottom = 1.25
+	holder.add_child(shadow)
+	var breath := Control.new()
+	breath.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	breath.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(breath)
 	var sprite := TextureRect.new()
 	sprite.texture = _actor_texture(who, mood)
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	sprite.set_anchors_preset(Control.PRESET_FULL_RECT)
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.add_child(sprite)
+	breath.add_child(sprite)
 	actors_layer.add_child(holder)
-	actors[who] = {"holder": holder, "sprite": sprite, "slot": slot, "mood": mood}
+	actors[who] = {"holder": holder, "sprite": sprite, "breath": breath, "slot": slot, "mood": mood, "phase": randf() * TAU}
 	_layout()
 	sprite.position.y = 70
 	sprite.modulate.a = 0.0
@@ -1576,26 +1619,35 @@ func home() -> void:
 	set_prop(null)
 	desk.texture = UI.texture("res://assets/ui/desk.png")
 	var kids: Array = []
-	var art := UI.image("res://assets/places/unit9.png", Vector2(0, 230))
+	var art_mask := StageFX.rect_image(StageFX.fade_mask(0.3))
+	art_mask.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	art_mask.clip_contents = true
+	art_mask.custom_minimum_size = Vector2(0, 250)
+	var art := UI.image("res://assets/places/unit9.png")
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art_mask.add_child(art)
 	var sam := UI.image("res://assets/characters/sam_neutral.png")
 	sam.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	sam.offset_top = -190
-	sam.offset_right = 160
+	sam.offset_top = -210
+	sam.offset_right = 175
 	sam.offset_left = 8
-	art.add_child(sam)
-	art.clip_contents = true
-	kids.append(art)
-	kids.append(UI.tag("Unit 9, Language Crimes", UI.SOFT, 14))
-	var title := UI.label("CASE\nFILES", 78, UI.type_b)
-	title.add_theme_constant_override("line_spacing", -18)
-	kids.append(title)
+	sam.modulate = StageFX.ambient_tint(art.texture)
+	art_mask.add_child(sam)
+	kids.append(art_mask)
+	var title := UI.label("CASE\nFILES", 70, UI.type_b)
+	title.add_theme_constant_override("line_spacing", -16)
 	var bar := ColorRect.new()
 	bar.color = UI.RED
 	bar.custom_minimum_size = Vector2(84, 8)
 	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	kids.append(bar)
-	kids.append(UI.label("Detective work where the evidence is English. Every answer you give does a job in the case.", 20))
+	var pin := UI.image("res://assets/ui/pin.png", Vector2(26, 28))
+	pin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var label := UI.paper([pin, UI.tag("Unit 9, Language Crimes", UI.SOFT, 14), title, bar,
+		UI.label("Detective work where the evidence is English. Every answer you give does a job in the case.", 19)], 18)
+	label.resized.connect(func() -> void: label.pivot_offset = label.size * 0.5)
+	label.rotation = -0.018
+	kids.append(label)
 	for path in CASES:
 		var c = _read_json(path)
 		if not (c is Dictionary):

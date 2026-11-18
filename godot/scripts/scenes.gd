@@ -1431,7 +1431,9 @@ func accusation() -> void:
 			go.text = "Arrest %s" % st.suspect.name
 	var sus_row := UI.hbox([], 8)
 	for s in sc.suspects:
-		var img := UI.image("res://assets/characters/%s_neutral.png" % s.id, Vector2(0, 96))
+		var face := UI.image("res://assets/characters/%s_neutral.png" % s.id, Vector2(0, 96))
+		# the suspects are printed photographs: a dark studio ground inside a cream border
+		var img := UI.panel(UI.box(Color("2a1c13"), 0, 1, 4, Color("f4ead4"), 4), [face])
 		var nm := UI.label(s.name, 17, UI.serif_b)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		var role := _center(UI.tag(s.role, UI.SOFT, 10))
