@@ -31,7 +31,12 @@ const _winInfo = PlatformRuntime.getSystemInfo();
 // behavior on WeChat and Douyin until the same real-device gate is repeated.
 const _reportedDpr = Number(_winInfo.pixelRatio ?? _winInfo.devicePixelRatio ?? 1);
 const _hostDpr = Number.isFinite(_reportedDpr) && _reportedDpr > 0 ? _reportedDpr : 1;
-const _dpr = PlatformRuntime.platform === "tiktok" ? _hostDpr : 1;
+// LOCAL PATCH (Case Files): WeChat renders at the phone's pixel ratio, capped at 2x,
+// instead of the plugin's 1x, which looked soft on high-DPI phones. Re-apply this
+// line after updating the plugin. TikTok is unchanged; Douyin stays at 1x.
+const _dpr = PlatformRuntime.platform === "tiktok"
+  ? _hostDpr
+  : (PlatformRuntime.platform === "wechat" ? Math.min(_hostDpr, 2) : 1);
 let _viewportWidth = Number(_winInfo.windowWidth || _winInfo.screenWidth || _mainCanvas.width || 1);
 let _viewportHeight = Number(_winInfo.windowHeight || _winInfo.screenHeight || _mainCanvas.height || 1);
 
