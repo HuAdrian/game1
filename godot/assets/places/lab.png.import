@@ -17,7 +17,7 @@ dest_files=["res://.godot/imported/lab.png-ab4d98386c1704d2325272eb81186348.ctex
 
 compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.95
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

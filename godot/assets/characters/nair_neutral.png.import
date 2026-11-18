@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/nair_neutral.png-4b718612a3c51e56a9ce4274a02f
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.8
 compress/uastc_level=0

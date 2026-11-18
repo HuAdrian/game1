@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/desk_neutral.png-9bedf8ae23ff4168ec1603cc67a1
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.8
 compress/uastc_level=0

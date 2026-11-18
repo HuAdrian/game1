@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/sam_neutral.png-30afa18f65b77cb69fdc6dce89c70
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.8
 compress/uastc_level=0
