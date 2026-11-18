@@ -84,6 +84,7 @@ var outgoing: Control       # documents sliding off the desk
 var pressure_player: AudioStreamPlayer
 var doc_rise := 0.0         # documents land from slightly below
 var band_mask: GradientTexture2D   # feathers the bottom of the scene into the desk
+var band_fade := 0.22
 var dust: CPUParticles2D
 var ambient := Color.WHITE  # the room's light on the people in it
 var idle_t := 0.0
@@ -303,7 +304,8 @@ func _layout() -> void:
 	scene_view.size = Vector2(w, sh)
 	if sh > 0.0:
 		var fade: float = clamp(46.0 / sh, 0.0, 0.45)
-		if abs(band_mask.gradient.get_offset(2) - (1.0 - fade)) > 0.004:
+		if abs(band_fade - fade) > 0.004:
+			band_fade = fade
 			StageFX.set_fade(band_mask, fade)
 	dust.position = Vector2(w * 0.5, sh * 0.5)
 	dust.emission_rect_extents = Vector2(w * 0.5, sh * 0.5)
